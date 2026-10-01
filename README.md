@@ -1,23 +1,20 @@
-# E-Surat & SPPD — GitHub Static Preview
+# E-Surat & SPPD — GitHub Public No Login
 
-Versi ini TANPA DATABASE. Tidak memakai Apps Script, Spreadsheet, Cloudflare Worker, atau D1.
+Versi ini dibuat untuk penggunaan langsung tanpa database dan tanpa login.
 
-## Perilaku
-- Semua data surat hanya diproses di browser.
-- Preview dan cetak tetap dapat digunakan.
-- Refresh/reload menghilangkan data yang sedang diisi.
-- Default identitas sekolah: **SMKS Budi Mulya**.
-- Identitas sekolah dapat diedit dari menu Setting selama halaman terbuka.
-- Perubahan setting tidak disimpan permanen; refresh mengembalikan default.
+## Konsep
+- Tidak ada login.
+- Tidak ada database.
+- Semua pengguna dianggap memiliki hak akses Admin.
+- Semua menu dapat digunakan.
+- Identitas sekolah dapat diedit dari Setting.
+- Pengumuman tampil di bagian atas aplikasi.
+- Data surat hanya sementara dan hilang saat refresh/reload.
+- Tidak ada Apps Script, D1, Worker, atau localStorage.
 
-## Upload GitHub Pages
-1. Buat repository baru.
-2. Upload `index.html` dan `config.js`.
-3. Commit ke branch `main`.
-4. Settings → Pages → Deploy from a branch → `main` → `/ (root)` → Save.
-5. Buka URL GitHub Pages.
+## Deploy
+Upload `index.html` dan `config.js` ke repository GitHub.
+Aktifkan GitHub Pages dari Settings → Pages → Deploy from a branch → main → root.
 
-Tidak perlu Node.js/Wrangler/D1/Apps Script.
-
-## Catatan
-Versi ini dimaksudkan untuk penggunaan preview/cetak ringan. Jika nanti ingin menyimpan arsip surat, gunakan versi database Cloudflare D1.
+## Default
+SMKS Budi Mulya — Bojonegoro, Jawa Timur.

@@ -2435,5 +2435,37 @@ window.ESURAT_RUNTIME_SETTINGS=JSON.parse(JSON.stringify(window.ESURAT_CONFIG.sc
 window.getStaticSchoolSettings=function(){return Object.assign({},window.ESURAT_RUNTIME_SETTINGS)};
 window.setStaticSchoolSettings=function(data){Object.assign(window.ESURAT_RUNTIME_SETTINGS,data||{});return getStaticSchoolSettings()};
 </script>
+
+<script>
+/* E-SURAT PUBLIC NO-LOGIN MODE */
+window.ESURAT_PUBLIC_MODE = true;
+window.ESURAT_ROLE = "admin";
+window.ESURAT_AUTHENTICATED = true;
+
+document.addEventListener("DOMContentLoaded", function () {
+  // Hide common login/auth UI if present.
+  [
+    "#loginPage", "#loginModal", "#authPage", "#loginOverlay",
+    ".login-page", ".login-screen", ".auth-screen"
+  ].forEach(function(sel){
+    document.querySelectorAll(sel).forEach(function(el){
+      el.style.display = "none";
+    });
+  });
+
+  // Show a lightweight announcement instead of login.
+  var ann = document.createElement("div");
+  ann.id = "publicAnnouncement";
+  ann.innerHTML =
+    '<div style="padding:10px 14px;border-radius:12px;background:#eef7f5;margin:10px 0;font-size:13px;">' +
+    '<strong>📢 Pengumuman:</strong> Mode publik aktif — tidak perlu login. ' +
+    'Semua menu dan pengaturan dapat digunakan langsung.' +
+    '</div>';
+
+  var target = document.querySelector("main, .container, .app-container, body");
+  if (target) target.insertBefore(ann, target.firstChild);
+});
+</script>
+
 </body>
 </html>
