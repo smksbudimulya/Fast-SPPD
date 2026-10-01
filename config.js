@@ -1,23 +1,15 @@
-// E-Surat & SPPD — GitHub Public / No Login
+// E-Surat & SPPD — PUBLIC STATIC MODE
 window.ESURAT_CONFIG = {
-  mode: "public-no-login",
+  mode: "public-static",
   auth: false,
-  role: "admin",
+  role: "Admin",
+  DEFAULT_PAPER_SIZE: "a4",
   school: {
     nama: "SMKS Budi Mulya",
-    alamat: "Jl. Raya Kasiman",
+    alamat: "Jl. Wonosari, Sambeng-Kasiman, Bojonegoro",
     kabupaten: "Bojonegoro",
     provinsi: "Jawa Timur",
-    telepon: "",
-    email: "",
-    website: "",
-    npsn: "",
-    logo: "https://res.cloudinary.com/bwmgqxug/image/upload/v1789022731/logo95_-_Copy.png",
-    kepalaSekolah: "",
-    nipKepala: ""
+    logo: "https://res.cloudinary.com/bwmgqxug/image/upload/v1789022731/logo95_-_Copy.png"
   },
-  announcement: {
-    enabled: true,
-    text: "Mode publik aktif — tidak perlu login. Semua menu dan pengaturan dapat digunakan langsung."
-  }
+  announcement: "Mode publik aktif — tidak perlu login. Semua pengguna memiliki hak akses Admin."
 };

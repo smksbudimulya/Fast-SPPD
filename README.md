@@ -1,20 +1,18 @@
-# E-Surat & SPPD — GitHub Public No Login
+# E-Surat & SPPD — GitHub Public Static / No Login
 
-Versi ini dibuat untuk penggunaan langsung tanpa database dan tanpa login.
+Versi ini benar-benar **tanpa login dan tanpa database**.
 
-## Konsep
-- Tidak ada login.
-- Tidak ada database.
-- Semua pengguna dianggap memiliki hak akses Admin.
-- Semua menu dapat digunakan.
-- Identitas sekolah dapat diedit dari Setting.
-- Pengumuman tampil di bagian atas aplikasi.
-- Data surat hanya sementara dan hilang saat refresh/reload.
-- Tidak ada Apps Script, D1, Worker, atau localStorage.
+- Semua pengguna langsung masuk sebagai Admin.
+- Semua menu operasional dapat digunakan.
+- Pengaturan sekolah dapat diedit.
+- Master Guru dapat ditambah/hapus.
+- Surat dapat dibuat, diedit, dihapus, dipreview, dan dicetak.
+- Data hanya berada di memori halaman. Refresh browser mengosongkan data surat/guru dan mengembalikan setting ke default.
+- Tidak ada Apps Script, Cloudflare D1, Worker, API, session, localStorage, atau database.
+- Menu Pengguna dan Database disembunyikan karena memang tidak ada autentikasi/database.
 
-## Deploy
-Upload `index.html` dan `config.js` ke repository GitHub.
-Aktifkan GitHub Pages dari Settings → Pages → Deploy from a branch → main → root.
+## Upload GitHub Pages
+Upload `index.html` dan `config.js` ke repository, lalu aktifkan Settings → Pages → Deploy from branch → `main` → `/root`.
 
 ## Default
 SMKS Budi Mulya — Bojonegoro, Jawa Timur.
