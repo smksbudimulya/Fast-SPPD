@@ -1,0 +1,2439 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Surat & SPPD SMKS Budi Mulya</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts Inter & Times New Roman for Print -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+/* FORMAT CETAK DOKUMEN */
+    .surat-font {
+      font-family: 'Times New Roman', Times, serif;
+    }
+
+    /* DATE PICKER - pengguna memilih tanggal melalui kalender, bukan mengetik format Indonesia */
+    .date-picker-input {
+      cursor: pointer;
+      color-scheme: light;
+    }
+    .date-picker-input::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      position: absolute;
+      right: 0;
+      width: 42px;
+      height: 100%;
+      cursor: pointer;
+    }
+    .date-picker-input:invalid {
+      box-shadow: none;
+    }
+
+    /* =========================================================
+       LAYOUT DOKUMEN RESMI + PRINT ENGINE
+       Setiap dokumen = 1 lembar fisik. Halaman 1 Surat Tugas,
+       halaman 2 SPPD. Tidak boleh saling menumpuk.
+       ========================================================= */
+    /* =========================================================
+       PRINT ENGINE v8
+       Preview dan hasil cetak memakai lembar fisik yang sama.
+       Jangan gunakan flex untuk engine print karena Chrome dapat
+       mengompresi/menyatukan halaman saat print preview.
+       ========================================================= */
+    @media print {
+      @page { margin: 0; }
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        width: 100% !important;
+      }
+      body * { visibility: hidden !important; }
+      #modal-preview, #modal-preview * { visibility: visible !important; }
+      #modal-preview {
+        position: static !important;
+        display: block !important;
+        background: #fff !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      #modal-preview > div:first-child,
+      #modal-preview .no-print,
+      .preview-toolbar,
+      .no-print { display: none !important; }
+      .preview-document-wrap {
+        display: block !important;
+        position: static !important;
+        width: auto !important;
+        max-height: none !important;
+        height: auto !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      #print-area {
+        display: block !important;
+        position: static !important;
+        width: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        box-shadow: none !important;
+      }
+      #print-area .document-page {
+        display: block !important;
+        position: relative !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        overflow: hidden !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      #print-area #page-1-surat-tugas {
+        page-break-after: always !important;
+        break-after: page !important;
+      }
+      #print-area #page-2-sppd {
+        page-break-before: auto !important;
+        break-before: auto !important;
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }
+      .document-page:last-child { page-break-after: auto !important; }
+      img { print-color-adjust: exact !important; -webkit-print-color-adjust: exact !important; }
+    }
+
+    .paper-a4 { width: 210mm; }
+    .paper-f4 { width: 215mm; }
+
+    #print-area {
+      box-sizing: border-box;
+      background: transparent;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10mm;
+    }
+
+    /* Setiap halaman adalah lembar fisik, bukan tinggi pixel. */
+    .document-page {
+      width: 210mm;
+      height: 297mm;
+      min-height: 297mm;
+      box-sizing: border-box;
+      flex: 0 0 297mm;
+      position: relative;
+      overflow: hidden;
+      background: #fff !important;
+      color: #000;
+      padding: 13mm 14mm 12mm;
+      margin: 0;
+      box-shadow: 0 8px 30px rgba(15,23,42,.25);
+      font-size: 11pt;
+      line-height: 1.35;
+    }
+    #print-area.paper-f4 .document-page {
+      width: 215mm;
+      height: 330mm;
+      min-height: 330mm;
+      flex-basis: 330mm;
+    }
+
+    /* =========================================================
+       KOP SURAT FULL WIDTH
+       Logo berada di kiri, identitas sekolah benar-benar di tengah
+       seluruh lebar kop. Garis bawah memenuhi seluruh area halaman.
+       ========================================================= */
+    .kop-surat {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 31mm;
+      padding: 0 4mm 4mm;
+      box-sizing: border-box;
+      border-bottom: 2.5px solid #111;
+    }
+    .kop-surat::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -5px;
+      border-bottom: 1px solid #111;
+    }
+    .kop-surat > div:first-child {
+      position: absolute;
+      left: 2mm;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 27mm;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .kop-surat .kop-logo {
+      width: 25mm;
+      height: 25mm;
+      object-fit: contain;
+    }
+    .kop-surat .kop-center {
+      width: 100%;
+      max-width: 170mm;
+      text-align: center;
+      line-height: 1.1;
+      padding: 0 2mm;
+    }
+    .kop-surat .kop-center .kop-jenis {
+      font-size: 13pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin: 0;
+    }
+    .kop-surat .kop-center .kop-nama {
+      font-size: 16pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .2px;
+      margin: 1mm 0 .8mm;
+    }
+    .kop-surat .kop-center .kop-detail {
+      font-size: 8.6pt;
+      margin: 0;
+    }
+    .kop-surat .kop-center .kop-kota {
+      font-size: 9pt;
+      font-weight: 700;
+      letter-spacing: .25px;
+      margin-top: .8mm;
+    }
+    .kop-surat .kop-spacer { display: none; }
+
+    .kop-surat.kop-sppd {
+      min-height: 29mm;
+      padding-bottom: 3.5mm;
+    }
+    .kop-surat.kop-sppd > div:first-child {
+      width: 25mm;
+      left: 2mm;
+    }
+    .kop-surat.kop-sppd .kop-logo { width: 22mm; height: 22mm; }
+    .kop-surat.kop-sppd .kop-center .kop-jenis { font-size: 12pt; }
+    .kop-surat.kop-sppd .kop-center .kop-nama { font-size: 15pt; }
+    .kop-surat.kop-sppd .kop-center .kop-detail { font-size: 8pt; }
+    .kop-surat.kop-sppd .kop-center .kop-kota { font-size: 8.5pt; }
+
+    /* Surat Tugas */
+    #page-1-surat-tugas .surat-tugas-body { padding-top: 1mm; }
+    #page-1-surat-tugas table { line-height: 1.35; }
+    #page-1-surat-tugas .ttd-surat { margin-top: 8mm; }
+
+    /* SPPD */
+    #page-2-sppd { font-size: 9pt; line-height: 1.25; }
+    #page-2-sppd .sppd-title { margin: 4mm 0 4mm; }
+    #page-2-sppd .sppd-grid { font-size: 8.1pt; line-height: 1.18; }
+    #page-2-sppd .sppd-grid, #page-2-sppd .sppd-grid > div, #page-2-sppd .sppd-grid table { break-inside: avoid; }
+    #page-2-sppd .sppd-grid table td { padding: 1.5mm 1.6mm; }
+    #page-2-sppd .sppd-right { font-size: 7.8pt; line-height: 1.2; }
+    #page-2-sppd .sppd-right > div { padding-bottom: 2.5mm; margin-bottom: 2.5mm; }
+    #page-2-sppd .sppd-right .sppd-sign { margin-top: 2mm; }
+    #page-2-sppd .sppd-right .sppd-sign-gap { height: 7mm; }
+    #page-2-sppd .sppd-footnote { font-size: 6.8pt; line-height: 1.2; margin-top: 2mm; }
+
+    .preview-document-wrap {
+      width: 100%;
+      max-height: calc(100vh - 125px);
+      overflow-y: auto;
+      overflow-x: auto;
+      padding: 10mm 8mm 16mm;
+      box-sizing: border-box;
+    }
+    .preview-document-wrap #print-area { margin: 0 auto; }
+
+    /* SPPD TABLE BORDER STYLES */
+    .table-sppd { border-collapse: collapse; width: 100%; }
+    .table-sppd th, .table-sppd td {
+      border: 1px solid #000;
+      padding: 4px 6px;
+      vertical-align: top;
+      font-size: 13px;
+    }
+    .welcome-card { animation: welcomeIn .28s ease-out; }
+    @keyframes welcomeIn { from { opacity:0; transform:translateY(10px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
+  </style>
+
+  <!-- DYNAMIC PRINT STYLESHEET HOLDER -->
+  <style id="dynamic-paper-print"></style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased">
+
+  <!-- APP CONTAINER -->
+  <div id="app" class="min-h-screen flex flex-col">
+    
+    <!-- NAVBAR INTERAKTIF -->
+    <header class="bg-indigo-900 text-white shadow-md no-print">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div class="flex items-center space-x-3 cursor-pointer" onclick="switchView('dashboard')">
+          <img src="https://res.cloudinary.com/bwmgqxug/image/upload/v1789022731/logo95_-_Copy.png" class="w-10 h-10 bg-white rounded-full p-1 shadow" alt="Logo">
+          <div>
+            <h1 class="font-bold text-lg leading-tight">E-Surat & SPPD</h1>
+            <p class="text-xs text-indigo-200" id="school-name-nav">SMKS Budi Mulya</p>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+          <!-- USER STATUS / ADMIN LOGIN BUTTON -->
+          <div id="nav-auth-container" class="flex items-center space-x-2">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENT WRAPPER -->
+    <div class="flex-1 flex flex-col md:flex-row max-w-7xl w-full mx-auto p-4 md:p-6 gap-6 no-print">
+      
+      <!-- SIDEBAR NAVIGATION -->
+      <aside id="sidebar" class="w-full md:w-64 bg-white rounded-xl shadow-sm border border-slate-200 p-4 h-fit">
+        <nav class="space-y-1" id="menu-container">
+          <!-- Menus injected dynamically based on role -->
+        </nav>
+      </aside>
+
+      <!-- MAIN VIEW PANEL -->
+      <main class="flex-1 bg-white rounded-xl shadow-sm border border-slate-200 p-6 overflow-x-auto min-h-[500px]">
+        
+        <!-- VIEW: DASHBOARD -->
+        <div id="view-dashboard" class="space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <div>
+              <h2 class="text-xl font-bold text-slate-800">Dashboard Utama</h2>
+              <p class="text-xs text-slate-500">Ringkasan aktivitas pembuatan surat tugas & perjalanan dinas</p>
+            </div>
+            <button onclick="switchView('form-surat')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm px-4 py-2 rounded-lg shadow flex items-center gap-2">
+              <i class="fa-solid fa-plus"></i> Buat Surat Baru
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="p-5 bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-xl shadow">
+              <p class="text-xs text-indigo-100 font-medium">Total Surat Terbit</p>
+              <h3 class="text-3xl font-extrabold mt-1" id="stat-total-surat">0</h3>
+              <p class="text-xs text-indigo-200 mt-2"><i class="fa-solid fa-file-lines mr-1"></i> Surat Tugas & SPPD</p>
+            </div>
+            <div class="p-5 bg-gradient-to-br from-emerald-500 to-emerald-700 text-white rounded-xl shadow">
+              <p class="text-xs text-emerald-100 font-medium">Jumlah Guru Terdaftar</p>
+              <h3 class="text-3xl font-extrabold mt-1" id="stat-total-guru">0</h3>
+              <p class="text-xs text-emerald-200 mt-2"><i class="fa-solid fa-users mr-1"></i> Data Pegawai</p>
+            </div>
+            <div class="p-5 bg-gradient-to-br from-amber-500 to-amber-700 text-white rounded-xl shadow">
+              <p class="text-xs text-amber-100 font-medium">Kepala Sekolah Aktif</p>
+              <h3 class="text-lg font-bold mt-2 truncate" id="stat-nama-kepsek">-</h3>
+              <p class="text-xs text-amber-200 mt-1" id="stat-nip-kepsek">NIP: -</p>
+            </div>
+          </div>
+
+          <!-- RIWAYAT RINGKAS -->
+          <div class="mt-8">
+            <h3 class="font-bold text-slate-800 mb-3 text-sm flex items-center gap-2">
+              <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i> Transaksi Surat Terbaru
+            </h3>
+            <div class="overflow-x-auto border rounded-lg">
+              <table class="w-full text-sm text-left text-slate-600">
+                <thead class="text-xs text-slate-700 uppercase bg-slate-50 border-b">
+                  <tr>
+                    <th class="px-4 py-3">No. Surat</th>
+                    <th class="px-4 py-3">Nama Guru</th>
+                    <th class="px-4 py-3">Tempat Tujuan</th>
+                    <th class="px-4 py-3">Tgl Tugas</th>
+                    <th class="px-4 py-3 text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="table-recent-surat">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- VIEW: FORM BUAT / EDIT SURAT -->
+        <div id="view-form-surat" class="hidden space-y-6">
+          <div class="border-b pb-4 flex justify-between items-center">
+            <div>
+              <h2 class="text-xl font-bold text-slate-800" id="form-surat-title">Buat Surat Tugas & SPPD</h2>
+              <p class="text-xs text-slate-500">Lengkapi formulir di bawah ini untuk menerbitkan dokumen 2 halaman</p>
+            </div>
+            <button onclick="switchView('arsip')" class="text-slate-600 hover:text-slate-800 text-sm font-medium">
+              <i class="fa-solid fa-arrow-left mr-1"></i> Kembali ke Arsip
+            </button>
+          </div>
+
+          <form onsubmit="handleSaveSurat(event)" class="space-y-6">
+            <input type="hidden" id="surat-id">
+
+            <!-- SEKSI 1: DATA GURU TUGAS -->
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <h3 class="font-bold text-slate-700 text-sm mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-user-gear text-indigo-600"></i> 1. Identitas Guru / Pegawai Ditugaskan
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Pilih Guru dari Database</label>
+                  <select id="surat-select-guru" onchange="autoFillGuruInfo()" class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500">
+                    <option value="">-- Ketik Manual / Pilih Guru --</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Lengkap & Gelar *</label>
+                  <input type="text" id="surat-nama-guru" required class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500" placeholder="Contoh: Suwanti, S.Pd">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">NIP (Isi '-' jika tidak ada)</label>
+                  <input type="text" id="surat-nip-guru" value="-" class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Pangkat / Golongan (Isi '-' jika tidak ada)</label>
+                  <input type="text" id="surat-pangkat-guru" value="-" class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Jabatan Guru *</label>
+                  <input type="text" id="surat-jabatan-guru" required class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500" placeholder="Contoh: Guru Produktif">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Unit Kerja Guru *</label>
+                  <input type="text" id="surat-unit-guru" required class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500" value="SMKS Budi Mulya">
+                </div>
+              </div>
+            </div>
+
+            <!-- SEKSI 2: DETAIL SURAT & SPPD -->
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <h3 class="font-bold text-slate-700 text-sm mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-file-contract text-indigo-600"></i> 2. Nomor Surat & Keperluan Dinas
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Nomor Surat Tugas *</label>
+                  <input type="text" id="surat-no-tugas" required class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500" placeholder="Format: 421.5/08..../SMKS-BMK/IX/2026">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Nomor SPPD *</label>
+                  <input type="text" id="surat-no-sppd" required class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500" placeholder="Format: 421.5/12..../SMKS-BMK/IX/2026">
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Maksud / Keperluan Tugas *</label>
+                  <textarea id="surat-keperluan" required rows="2" class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500" placeholder="Contoh: Mengantar Berkas TKA"></textarea>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Tempat Berangkat</label>
+                  <input type="text" id="surat-tempat-berangkat" class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500" value="SMKS Budi Mulya">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Tempat Tujuan *</label>
+                  <input type="text" id="surat-tempat-tujuan" required class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500" placeholder="Contoh: Cabdin Bojonegoro">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Alat Angkut yang Digunakan</label>
+                  <input type="text" id="surat-alat-angkut" class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500" value="Kendaraan Umum">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Lamanya Perjalanan Dinas</label>
+                  <input type="text" id="surat-lama-perjalanan" class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500" value="1 Hari">
+                </div>
+              </div>
+            </div>
+
+            <!-- SEKSI 3: TANGGAL & PENETAPAN -->
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <h3 class="font-bold text-slate-700 text-sm mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-calendar-days text-indigo-600"></i> 3. Tanggal Perjalanan & Penandatanganan
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Berangkat *</label>
+                  <div class="relative">
+                    <input type="date" id="surat-tgl-berangkat" required class="date-picker-input w-full px-3 py-2 pr-10 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500" aria-label="Tanggal Berangkat">
+                    <i class="fa-solid fa-calendar-days pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-indigo-500"></i>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Kembali *</label>
+                  <div class="relative">
+                    <input type="date" id="surat-tgl-kembali" required class="date-picker-input w-full px-3 py-2 pr-10 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500" aria-label="Tanggal Kembali">
+                    <i class="fa-solid fa-calendar-days pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-indigo-500"></i>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Surat Diterbitkan *</label>
+                  <div class="relative">
+                    <input type="date" id="surat-tgl-surat" required class="date-picker-input w-full px-3 py-2 pr-10 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500" aria-label="Tanggal Surat Diterbitkan">
+                    <i class="fa-solid fa-calendar-days pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-indigo-500"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+              <button type="button" onclick="switchView('arsip')" class="px-5 py-2 border rounded-lg text-sm text-slate-600 hover:bg-slate-100 font-medium">Batal</button>
+              <button type="submit" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-lg shadow flex items-center gap-2">
+                <i class="fa-solid fa-floppy-disk"></i> Simpan Data Surat
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- VIEW: ARSIP SURAT -->
+        <div id="view-arsip" class="hidden space-y-6">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+            <div>
+              <h2 class="text-xl font-bold text-slate-800">Arsip Surat Tugas & SPPD</h2>
+              <p class="text-xs text-slate-500">Daftar seluruh dokumen yang telah dibuat dan siap dicetak</p>
+            </div>
+            <div class="flex gap-2 w-full sm:w-auto">
+              <input type="text" id="search-surat" oninput="filterSuratTable()" placeholder="Cari nama / no. surat..." class="px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 w-full sm:w-64">
+              <button onclick="switchView('form-surat')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow whitespace-nowrap">
+                <i class="fa-solid fa-plus mr-1"></i> Buat Baru
+              </button>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto border rounded-xl shadow-sm">
+            <table class="w-full text-sm text-left text-slate-600">
+              <thead class="text-xs text-slate-700 uppercase bg-slate-100 border-b">
+                <tr>
+                  <th class="px-4 py-3">No.</th>
+                  <th class="px-4 py-3">No. Surat Tugas / SPPD</th>
+                  <th class="px-4 py-3">Guru Ditugaskan</th>
+                  <th class="px-4 py-3">Tujuan & Keperluan</th>
+                  <th class="px-4 py-3">Tgl Berangkat</th>
+                  <th class="px-4 py-3 text-center">Aksi Dokumen</th>
+                </tr>
+              </thead>
+              <tbody id="table-arsip-surat">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- VIEW: MASTER DATA GURU -->
+        <div id="view-master-guru" class="hidden space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <div>
+              <h2 class="text-xl font-bold text-slate-800">Master Data Guru & Pegawai</h2>
+              <p class="text-xs text-slate-500">Kelola daftar guru untuk memudahkan pengisian form surat</p>
+            </div>
+            <button onclick="openModalGuru()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow flex items-center gap-1.5">
+              <i class="fa-solid fa-user-plus"></i> Tambah Guru
+            </button>
+          </div>
+
+          <div class="overflow-x-auto border rounded-xl shadow-sm">
+            <table class="w-full text-sm text-left text-slate-600">
+              <thead class="text-xs text-slate-700 uppercase bg-slate-100 border-b">
+                <tr>
+                  <th class="px-4 py-3">Nama Lengkap</th>
+                  <th class="px-4 py-3">NIP</th>
+                  <th class="px-4 py-3">Pangkat/Gol</th>
+                  <th class="px-4 py-3">Jabatan</th>
+                  <th class="px-4 py-3">Unit Kerja</th>
+                  <th class="px-4 py-3 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="table-master-guru">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- VIEW: MANAJEMEN PENGGUNA -->
+        <div id="view-users" class="hidden space-y-6">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+            <div>
+              <h2 class="text-xl font-bold text-slate-800">Manajemen Pengguna</h2>
+              <p class="text-xs text-slate-500">Tambah, edit akun, ubah password, dan atur hak akses pengguna aplikasi.</p>
+            </div>
+            <button onclick="openUserModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow flex items-center gap-2">
+              <i class="fa-solid fa-user-plus"></i> Tambah Pengguna
+            </button>
+          </div>
+
+          <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-800 flex gap-3 items-start">
+            <i class="fa-solid fa-shield-halved mt-0.5"></i>
+            <div><b>Hak akses:</b> Admin dapat mengelola pengguna dan pengaturan sekolah. Operator dapat membuat, mengedit, mencetak, dan mengarsipkan Surat Tugas/SPPD.</div>
+          </div>
+
+          <div class="overflow-x-auto border rounded-xl shadow-sm bg-white">
+            <table class="w-full text-sm text-left text-slate-600">
+              <thead class="text-xs text-slate-700 uppercase bg-slate-100 border-b">
+                <tr>
+                  <th class="px-4 py-3">Username</th>
+                  <th class="px-4 py-3">Nama</th>
+                  <th class="px-4 py-3">Role</th>
+                  <th class="px-4 py-3">Password</th>
+                  <th class="px-4 py-3">Status</th>
+                  <th class="px-4 py-3 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="table-users">
+                <tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">Belum ada data pengguna.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- VIEW: PENGATURAN ADMIN -->
+        <div id="view-settings" class="hidden space-y-6">
+          <div class="border-b pb-4">
+            <h2 class="text-xl font-bold text-slate-800">Pengaturan Aplikasi & Kepsek</h2>
+            <p class="text-xs text-slate-500">Atur profil sekolah dan identitas Kepala Sekolah yang muncul di surat</p>
+          </div>
+
+          <form onsubmit="handleSaveSettings(event)" class="space-y-6 max-w-3xl">
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-4">
+              <h3 class="font-bold text-indigo-900 text-sm border-b pb-2">Identitas Kepala Sekolah</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Kepala Sekolah *</label>
+                  <input type="text" id="set-nama-kepsek" required class="w-full px-3 py-2 border rounded-md text-sm">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">NIP Kepala Sekolah</label>
+                  <input type="text" id="set-nip-kepsek" class="w-full px-3 py-2 border rounded-md text-sm">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Pangkat / Golongan Kepsek</label>
+                  <input type="text" id="set-pangkat-kepsek" class="w-full px-3 py-2 border rounded-md text-sm">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Jabatan Kepsek *</label>
+                  <input type="text" id="set-jabatan-kepsek" required class="w-full px-3 py-2 border rounded-md text-sm">
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-4">
+              <h3 class="font-bold text-indigo-900 text-sm border-b pb-2">Identitas Sekolah & Kop Surat</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Instansi / Sekolah</label>
+                  <input type="text" id="set-nama-sekolah" required class="w-full px-3 py-2 border rounded-md text-sm">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Kecamatan / Kota (Penetapan Surat)</label>
+                  <input type="text" id="set-kota-sekolah" required class="w-full px-3 py-2 border rounded-md text-sm">
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Alamat Lengkap Sekolah</label>
+                  <input type="text" id="set-alamat-sekolah" required class="w-full px-3 py-2 border rounded-md text-sm">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">No. Telepon Sekolah</label>
+                  <input type="text" id="set-telp-sekolah" class="w-full px-3 py-2 border rounded-md text-sm">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Email Sekolah</label>
+                  <input type="text" id="set-email-sekolah" class="w-full px-3 py-2 border rounded-md text-sm">
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">URL Logo Sekolah</label>
+                  <input type="text" id="set-logo-url" required class="w-full px-3 py-2 border rounded-md text-sm">
+                </div>
+              </div>
+            </div>
+
+            <div class="flex justify-end">
+              <button type="submit" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-lg shadow flex items-center gap-2">
+                <i class="fa-solid fa-floppy-disk"></i> Simpan Pengaturan
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- VIEW: KELOLA ARSIP & DATABASE KHUSUS ADMIN -->
+        <div id="view-database" class="hidden space-y-6">
+          <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b pb-4">
+            <div>
+              <h2 class="text-xl font-bold text-slate-800">Kelola Arsip & Database</h2>
+              <p class="text-xs text-slate-500">Hapus arsip surat yang sudah tidak diperlukan agar database tetap ringan.</p>
+            </div>
+            <div class="px-4 py-2 rounded-xl bg-indigo-50 border border-indigo-100 text-sm">
+              <span class="text-slate-500">Total arsip:</span>
+              <strong id="db-total-surat" class="text-indigo-700 ml-1">0</strong>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="rounded-xl border bg-slate-50 p-4"><div class="text-[11px] text-slate-500">Pengguna</div><div id="db-count-users" class="text-2xl font-extrabold text-slate-800">0</div></div>
+            <div class="rounded-xl border bg-slate-50 p-4"><div class="text-[11px] text-slate-500">Guru</div><div id="db-count-guru" class="text-2xl font-extrabold text-slate-800">0</div></div>
+            <div class="rounded-xl border bg-slate-50 p-4"><div class="text-[11px] text-slate-500">Surat</div><div id="db-count-surat" class="text-2xl font-extrabold text-slate-800">0</div></div>
+            <div class="rounded-xl border bg-slate-50 p-4"><div class="text-[11px] text-slate-500">Session</div><div id="db-count-sessions" class="text-2xl font-extrabold text-slate-800">0</div></div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div class="bg-white border border-red-100 rounded-2xl p-5 shadow-sm">
+              <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center"><i class="fa-solid fa-trash"></i></div>
+                <div>
+                  <h3 class="font-bold text-slate-800">Hapus Surat Satuan</h3>
+                  <p class="text-xs text-slate-500 mt-1">Pilih satu arsip lalu hapus permanen dari database.</p>
+                </div>
+              </div>
+              <div class="mt-4">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Pilih Surat</label>
+                <select id="db-single-surat" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500">
+                  <option value="">-- pilih arsip --</option>
+                </select>
+              </div>
+              <button type="button" onclick="deleteSingleFromDatabase()" class="mt-3 w-full px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold shadow">
+                <i class="fa-solid fa-trash mr-1"></i> Hapus Surat Terpilih
+              </button>
+            </div>
+
+            <div class="bg-white border border-amber-100 rounded-2xl p-5 shadow-sm">
+              <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fa-solid fa-calendar-xmark"></i></div>
+                <div>
+                  <h3 class="font-bold text-slate-800">Hapus Arsip Bulanan</h3>
+                  <p class="text-xs text-slate-500 mt-1">Menghapus seluruh surat berdasarkan bulan dan tahun tanggal surat.</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3 mt-4">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Bulan</label>
+                  <select id="db-month" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500">
+                    <option value="1">Januari</option><option value="2">Februari</option><option value="3">Maret</option><option value="4">April</option><option value="5">Mei</option><option value="6">Juni</option><option value="7">Juli</option><option value="8">Agustus</option><option value="9">September</option><option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Tahun</label>
+                  <select id="db-year" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm"></select>
+                </div>
+              </div>
+              <div id="db-month-count" class="mt-3 text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">Pilih periode untuk melihat jumlah arsip.</div>
+              <button type="button" onclick="deleteMonthlyFromDatabase(this)" class="mt-3 w-full px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-semibold shadow">
+                <i class="fa-solid fa-calendar-minus mr-1"></i> Hapus Semua Arsip Bulan Ini
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div class="bg-white border rounded-2xl p-5 shadow-sm">
+              <h3 class="font-bold text-slate-800">Bersihkan Session</h3>
+              <p class="text-xs text-slate-500 mt-1">Hapus token login yang sudah kedaluwarsa agar tabel session tetap kecil.</p>
+              <button type="button" onclick="cleanupExpiredSessions()" class="mt-4 w-full px-4 py-2.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-sm font-semibold"><i class="fa-solid fa-broom mr-1"></i> Bersihkan Session Expired</button>
+            </div>
+            <div class="bg-white border border-red-100 rounded-2xl p-5 shadow-sm">
+              <h3 class="font-bold text-red-700">Hapus Semua Surat</h3>
+              <p class="text-xs text-slate-500 mt-1">Menghapus seluruh arsip surat. Akun, guru, dan pengaturan tetap aman.</p>
+              <button type="button" onclick="clearAllSuratDatabase()" class="mt-4 w-full px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold"><i class="fa-solid fa-trash-can mr-1"></i> Hapus Semua Surat</button>
+            </div>
+            <div class="bg-white border border-red-200 rounded-2xl p-5 shadow-sm">
+              <h3 class="font-bold text-red-800">Reset Data Operasional</h3>
+              <p class="text-xs text-slate-500 mt-1">Hapus Surat + Guru + Session. User dan Settings tetap dipertahankan.</p>
+              <button type="button" onclick="resetOperationalDatabase()" class="mt-4 w-full px-4 py-2.5 bg-red-800 hover:bg-red-900 text-white rounded-lg text-sm font-semibold"><i class="fa-solid fa-database mr-1"></i> Reset Data Operasional</button>
+            </div>
+          </div>
+
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800">
+            <i class="fa-solid fa-triangle-exclamation mr-1"></i> <strong>Peringatan:</strong> penghapusan bersifat permanen dari Cloudflare D1. Dokumen yang sudah dihapus tidak dapat dicetak kembali melalui arsip aplikasi. Gunakan menu ini hanya untuk arsip yang benar-benar sudah tidak diperlukan.
+          </div>
+
+          <div class="overflow-x-auto border rounded-xl shadow-sm bg-white">
+            <table class="w-full text-sm text-left text-slate-600">
+              <thead class="text-xs text-slate-700 uppercase bg-slate-100 border-b">
+                <tr><th class="px-4 py-3">No.</th><th class="px-4 py-3">No. Surat</th><th class="px-4 py-3">Guru</th><th class="px-4 py-3">Tanggal</th><th class="px-4 py-3 text-center">Aksi</th></tr>
+              </thead>
+              <tbody id="table-database-surat"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </main>
+    </div>
+
+    <!-- MODAL MANAJEMEN PENGGUNA -->
+    <div id="modal-user" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[70] hidden items-center justify-center p-4">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full relative overflow-hidden">
+        <div class="px-6 py-4 bg-gradient-to-r from-indigo-700 to-blue-600 text-white flex items-center justify-between">
+          <div>
+            <h3 id="user-modal-title" class="font-bold text-lg">Tambah Pengguna</h3>
+            <p class="text-xs text-indigo-100">Kelola akun login E-Surat & SPPD</p>
+          </div>
+          <button type="button" onclick="closeUserModal()" class="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form onsubmit="handleSaveUser(event)" class="p-6 space-y-4">
+          <input type="hidden" id="user-id">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Username *</label>
+              <input id="user-username" type="text" required autocomplete="off" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="operator01">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Role *</label>
+              <select id="user-role" required class="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="Operator">Operator</option>
+                <option value="Admin">Admin</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Lengkap *</label>
+            <input id="user-nama" type="text" required class="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Nama Operator / Administrator">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Password *</label>
+            <div class="relative">
+              <input id="user-password" type="password" required autocomplete="new-password" class="w-full px-3 py-2.5 pr-11 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Masukkan password">
+              <button type="button" onclick="toggleUserPassword('user-password','user-password-eye')" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 text-slate-400 hover:text-indigo-600" title="Tampilkan password">
+                <i id="user-password-eye" class="fa-solid fa-eye"></i>
+              </button>
+            </div>
+            <p id="user-password-help" class="text-[11px] text-slate-400 mt-1">Saat edit, kosongkan jika password tidak ingin diubah.</p>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Status *</label>
+            <select id="user-status" required class="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+              <option value="Aktif">Aktif</option>
+              <option value="Nonaktif">Nonaktif</option>
+            </select>
+          </div>
+          <div class="pt-3 border-t flex justify-end gap-2">
+            <button type="button" onclick="closeUserModal()" class="px-4 py-2.5 border border-slate-300 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50">Batal</button>
+            <button id="btn-save-user" type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold shadow flex items-center gap-2">
+              <i class="fa-solid fa-floppy-disk"></i> Simpan Pengguna
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL WELCOME / PETUNJUK AWAL -->
+    <div id="modal-welcome" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+      <div class="welcome-card bg-white rounded-3xl shadow-2xl max-w-xl w-full p-6 sm:p-7 relative border border-slate-200">
+        <button onclick="closeWelcomeModal()" class="absolute top-4 right-4 w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition" aria-label="Tutup">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="flex items-center gap-4 mb-5 pr-8">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg overflow-hidden">
+            <img src="https://res.cloudinary.com/bwmgqxug/image/upload/v1789022731/logo95_-_Copy.png" class="w-12 h-12 object-contain" alt="Logo SMKS Budi Mulya">
+          </div>
+          <div>
+            <h3 class="text-xl sm:text-2xl font-extrabold text-slate-800">Selamat Datang di E-Surat &amp; SPPD</h3>
+            <p class="text-sm text-slate-500 mt-1">SMKS Budi Mulya · Sistem Surat Tugas &amp; Perjalanan Dinas</p>
+          </div>
+        </div>
+
+        <div class="space-y-2.5">
+          <div class="flex gap-3 items-start rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">1</span>
+            <div><p class="font-bold text-slate-800">Login pengguna</p><p class="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">Masuk menggunakan akun <b>Admin</b> atau <b>Operator</b> yang terdaftar di database aplikasi.</p></div>
+          </div>
+          <div class="flex gap-3 items-start rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">2</span>
+            <div><p class="font-bold text-slate-800">Buat Surat Tugas &amp; SPPD</p><p class="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">Isi data guru, tujuan, keperluan, serta tanggal perjalanan. Dokumen tersimpan di database.</p></div>
+          </div>
+          <div class="flex gap-3 items-start rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">3</span>
+            <div><p class="font-bold text-slate-800">Cetak &amp; arsipkan</p><p class="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">Pilih A4 atau F4, lalu cetak kembali kapan saja dari menu Arsip Surat.</p></div>
+          </div>
+        </div>
+
+        <div class="mt-6 pt-5 border-t border-slate-200 flex flex-col sm:flex-row gap-3 sm:items-center">
+          <label class="flex items-center gap-2 text-xs text-slate-500 cursor-pointer order-2 sm:order-1">
+            <input id="welcome-dont-show" type="checkbox" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+            <span>Jangan tampilkan lagi</span>
+          </label>
+          <button onclick="openLoginFromWelcome()" class="order-1 sm:order-2 flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-200 transition flex items-center justify-center gap-2">
+            Login untuk Masuk <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL LOGIN ADMIN -->
+    <div id="modal-admin-login" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 relative">
+        <button onclick="closeAdminLoginModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+          <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+
+        <div class="text-center mb-6">
+          <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-2 text-xl font-bold">
+            <i class="fa-solid fa-user-shield"></i>
+          </div>
+          <h3 class="text-lg font-bold text-slate-800">Login E-Surat & SPPD</h3>
+          <p class="text-xs text-slate-500 mt-1">Masuk menggunakan akun Admin atau Operator</p>
+        </div>
+
+        <form onsubmit="handleAdminLogin(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Username</label>
+            <input type="text" id="login-admin-username" autocomplete="username" required class="w-full px-3.5 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" placeholder="admin">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+            <input type="password" id="login-admin-password" autocomplete="current-password" required class="w-full px-3.5 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" placeholder="••••••••">
+          </div>
+
+          <div class="p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-[11px] text-blue-800">
+            <i class="fa-solid fa-circle-info mr-1"></i>
+            Gunakan akun Administrator yang tersimpan pada database Cloudflare D1.
+          </div>
+
+          <button type="submit" id="btn-admin-login-submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg shadow transition flex justify-center items-center text-sm">
+            <span>Login</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL PRINT / PREVIEW DOKUMEN (2 HALAMAN) -->
+    <div id="modal-preview" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex flex-col justify-between overflow-y-auto p-2 sm:p-6">
+      
+      <!-- TOOLBAR MODAL PREVIEW -->
+      <div class="max-w-5xl w-full mx-auto bg-slate-800 text-white p-4 rounded-t-xl flex flex-col sm:flex-row justify-between items-center gap-4 sticky top-0 z-10 shadow-lg no-print">
+        <div class="flex items-center gap-3">
+          <i class="fa-solid fa-print text-indigo-400 text-xl"></i>
+          <div>
+            <h3 class="font-bold text-sm">Preview Cetak Surat Tugas & SPPD</h3>
+            <p class="text-xs text-slate-400">Pilih ukuran kertas sebelum mencetak • 2 lembar: Surat Tugas + SPPD</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <!-- SAKLAR UKURAN KERTAS A4 / F4 -->
+          <div class="flex items-center bg-slate-700 p-1 rounded-lg border border-slate-600">
+            <label class="text-xs font-medium px-2 text-slate-300">Ukuran Kertas:</label>
+            <button type="button" id="btn-paper-a4" onclick="setPaperSize('a4')" class="px-3 py-1 text-xs font-bold rounded-md bg-indigo-600 text-white transition">A4</button>
+            <button type="button" id="btn-paper-f4" onclick="setPaperSize('f4')" class="px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition">F4 (Folio)</button>
+          </div>
+
+          <div class="flex gap-2">
+            <button onclick="executePrint()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow flex items-center gap-2">
+              <i class="fa-solid fa-print"></i> Cetak Dokumen
+            </button>
+            <button onclick="closeModalPreview()" class="bg-slate-600 hover:bg-slate-700 text-white text-xs px-3 py-2 rounded-lg">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTAINER DOKUMEN CETAK 2 HALAMAN -->
+      <div class="preview-document-wrap">
+        <div id="print-area" class="paper-a4 text-black surat-font text-slate-900 leading-normal">
+          
+          <!-- ================= HALAMAN 1: SURAT TUGAS ================= -->
+          <div id="page-1-surat-tugas" class="document-page page-break flex flex-col">
+            <div>
+              <!-- KOP SURAT HALAMAN 1 -->
+              <div class="kop-surat border-kop mb-6">
+                <div><img id="print-logo-1" src="https://res.cloudinary.com/bwmgqxug/image/upload/v1789022731/logo95_-_Copy.png" class="kop-logo" alt="Logo Sekolah"></div>
+                <div class="kop-center">
+                  <p class="kop-jenis" id="print-header-jenis">SEKOLAH MENENGAH KEJURUAN</p>
+                  <p class="kop-nama" id="print-header-nama">SMKS BUDI MULYA</p>
+                  <p class="kop-detail" id="print-header-alamat">Jl. Wonosari, Sambeng-Kasiman, Bojonegoro Telp.(0296) 423345</p>
+                  <p class="kop-detail">e-mail: <span id="print-header-email">smkbudimulyakasiman@gmail.com</span></p>
+                  <p class="kop-kota" id="print-header-kota">KASIMAN BOJONEGORO-62164</p>
+                </div>
+                <div class="kop-spacer" aria-hidden="true"></div>
+              </div>
+
+              <!-- JUDUL SURAT TUGAS -->
+              <div class="text-center my-6">
+                <h2 class="font-bold text-lg underline tracking-widest uppercase">SURAT TUGAS</h2>
+                <p class="text-sm font-bold mt-0.5" id="print-no-tugas">No: 421.5/08....../SMKS-BMK/IX/2026</p>
+              </div>
+
+              <p class="text-sm mb-3">Yang bertanda tangan dibawah ini :</p>
+
+              <!-- DATA PEJABAT (KEPSEK) -->
+              <table class="w-full text-sm mb-4 ml-6">
+                <tr>
+                  <td class="w-32 py-1">Nama</td>
+                  <td class="w-4 py-1">:</td>
+                  <td class="font-bold py-1" id="print-kepsek-nama">Heru Kasiyanto, S.Kom.</td>
+                </tr>
+                <tr>
+                  <td class="py-1">NIP</td>
+                  <td class="py-1">:</td>
+                  <td class="py-1" id="print-kepsek-nip">-</td>
+                </tr>
+                <tr>
+                  <td class="py-1">Pangkat/Gol</td>
+                  <td class="py-1">:</td>
+                  <td class="py-1" id="print-kepsek-pangkat">-</td>
+                </tr>
+                <tr>
+                  <td class="py-1">Jabatan</td>
+                  <td class="py-1">:</td>
+                  <td class="py-1" id="print-kepsek-jabatan">Kepala SMKS Budi Mulya</td>
+                </tr>
+                <tr>
+                  <td class="py-1">Unit Kerja</td>
+                  <td class="py-1">:</td>
+                  <td class="py-1" id="print-kepsek-unit">SMKS Budi Mulya</td>
+                </tr>
+              </table>
+
+              <p class="text-sm mb-3">Memberi tugas kepada :</p>
+
+              <!-- DATA GURU TUGAS -->
+              <table class="w-full text-sm mb-6 ml-6">
+                <tr>
+                  <td class="w-32 py-1">Nama</td>
+                  <td class="w-4 py-1">:</td>
+                  <td class="font-bold py-1" id="print-guru-nama">Suwanti, S.Pd</td>
+                </tr>
+                <tr>
+                  <td class="py-1">NIP</td>
+                  <td class="py-1">:</td>
+                  <td class="py-1" id="print-guru-nip">-</td>
+                </tr>
+                <tr>
+                  <td class="py-1">Pangkat/Gol.</td>
+                  <td class="py-1">:</td>
+                  <td class="py-1" id="print-guru-pangkat">-</td>
+                </tr>
+                <tr>
+                  <td class="py-1">Jabatan</td>
+                  <td class="py-1">:</td>
+                  <td class="py-1" id="print-guru-jabatan">Guru Produktif</td>
+                </tr>
+                <tr>
+                  <td class="py-1">Unit Kerja</td>
+                  <td class="py-1">:</td>
+                  <td class="py-1" id="print-guru-unit">SMKS Budi Mulya</td>
+                </tr>
+              </table>
+
+              <!-- DETAIL PERJALANAN -->
+              <table class="w-full text-sm mb-8 ml-6">
+                <tr>
+                  <td class="w-32 py-1.5">Berangkat</td>
+                  <td class="w-4 py-1.5">:</td>
+                  <td class="font-bold py-1.5" id="print-tgl-berangkat-1">Jumat, 18 September 2026</td>
+                </tr>
+                <tr>
+                  <td class="py-1.5">Tempat</td>
+                  <td class="py-1.5">:</td>
+                  <td class="font-bold py-1.5" id="print-tempat-tujuan-1">Cabdin Bojonegoro</td>
+                </tr>
+                <tr>
+                  <td class="py-1.5">Keperluan</td>
+                  <td class="py-1.5">:</td>
+                  <td class="font-bold py-1.5" id="print-keperluan-1">Mengantar Berkas TKA</td>
+                </tr>
+              </table>
+
+              <p class="text-sm leading-relaxed mb-12">
+                Demikian surat tugas ini dibuat untuk dapat dilaksanakan dengan sebaik-baiknya dan rasa penuh tanggung jawab.
+              </p>
+            </div>
+
+            <!-- TANDA TANGAN HALAMAN 1 -->
+            <div class="flex justify-end">
+              <div class="text-center w-64 text-sm">
+                <p id="print-ttd-kota-tgl">Kasiman, Jumat, 18 September 2026</p>
+                <p class="mb-20">Kepala Sekolah</p>
+                <p class="font-bold underline" id="print-ttd-kepsek-nama-1">Heru Kasiyanto, S.Kom.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ================= HALAMAN 2: SPPD ================= -->
+          <div id="page-2-sppd" class="document-page">
+            <!-- KOP SURAT HALAMAN 2 -->
+            <div class="kop-surat kop-sppd border-kop mb-4">
+              <div><img id="print-logo-2" src="https://res.cloudinary.com/bwmgqxug/image/upload/v1789022731/logo95_-_Copy.png" class="kop-logo" alt="Logo Sekolah"></div>
+              <div class="kop-center">
+                <p class="kop-jenis" id="print-header-jenis-2">SEKOLAH MENENGAH KEJURUAN</p>
+                <p class="kop-nama" id="print-header-nama-2">SMKS BUDI MULYA</p>
+                <p class="kop-detail" id="print-header-alamat-2">Jl. Wonosari, Sambeng-Kasiman, Bojonegoro Telp.(0296) 423345</p>
+                <p class="kop-detail">e-mail: <span id="print-header-email-2">smkbudimulyakasiman@gmail.com</span></p>
+                <p class="kop-kota" id="print-header-kota-2">KASIMAN BOJONEGORO-62164</p>
+              </div>
+              <div class="kop-spacer" aria-hidden="true"></div>
+            </div>
+
+            <!-- JUDUL SPPD -->
+            <div class="text-center sppd-title">
+              <h2 class="font-bold text-base underline uppercase">SURAT PERINTAH PERJALANAN DINAS (SPPD)</h2>
+              <p class="text-xs font-bold" id="print-no-sppd">Nomor: 421.5/12......./SMKS-BMK/IX/2026</p>
+            </div>
+
+            <!-- LAYOUT TABLE GRID SPPD 2 KOLOM SIMETRIS -->
+            <div class="grid grid-cols-12 border border-black sppd-grid">
+              
+              <!-- KOLOM KIRI (NO 1 - 9) -->
+              <div class="col-span-6 border-r border-black p-0">
+                <table class="w-full text-xs border-collapse">
+                  <tr class="border-b border-black">
+                    <td class="w-6 p-1 text-center align-top border-r border-black">1.</td>
+                    <td class="p-1 align-top w-2/5 border-r border-black">Pejabat yang berwenang memberikan perintah</td>
+                    <td class="p-1 align-top" id="print-sppd-pejabat">Kepala Sekolah</td>
+                  </tr>
+                  <tr class="border-b border-black">
+                    <td class="p-1 text-center align-top border-r border-black">2.</td>
+                    <td class="p-1 align-top border-r border-black">Nama yang diperintah</td>
+                    <td class="p-1 align-top font-bold" id="print-sppd-nama-guru">Suwanti, S.Pd</td>
+                  </tr>
+                  <tr class="border-b border-black">
+                    <td class="p-1 text-center align-top border-r border-black" rowspan="4">3.</td>
+                    <td class="p-1 align-top border-r border-black">a. Pangkat dan Gol Ruang</td>
+                    <td class="p-1 align-top" id="print-sppd-pangkat">: <span id="sppd-val-pangkat">-</span></td>
+                  </tr>
+                  <tr class="border-b border-black">
+                    <td class="p-1 align-top border-r border-black">b. Jabatan</td>
+                    <td class="p-1 align-top" id="print-sppd-jabatan">: <span id="sppd-val-jabatan">Guru Produktif</span></td>
+                  </tr>
+                  <tr class="border-b border-black">
+                    <td class="p-1 align-top border-r border-black">c. Gaji Pokok</td>
+                    <td class="p-1 align-top">: -</td>
+                  </tr>
+                  <tr class="border-b border-black">
+                    <td class="p-1 align-top border-r border-black">d. Tingkat Menurut Peraturan Perjalanan</td>
+                    <td class="p-1 align-top">: -</td>
+                  </tr>
+                  <tr class="border-b border-black">
+                    <td class="p-1 text-center align-top border-r border-black">4.</td>
+                    <td class="p-1 align-top border-r border-black">Maksud mengadakan Peraturan Perjalanan</td>
+                    <td class="p-1 align-top" id="print-sppd-keperluan">: Mengantar Berkas TKA</td>
+                  </tr>
+                  <tr class="border-b border-black">
+                    <td class="p-1 text-center align-top border-r border-black">5.</td>
+                    <td class="p-1 align-top border-r border-black">Alat angkut yang digunakan</td>
+                    <td class="p-1 align-top" id="print-sppd-alat">: Kendaraan Umum</td>
+                  </tr>
+                  <tr class="border-b border-black">
+                    <td class="p-1 text-center align-top border-r border-black" rowspan="2">6.</td>
+                    <td class="p-1 align-top border-r border-black">a. Tempat berangkat</td>
+                    <td class="p-1 align-top" id="print-sppd-berangkat-dari">: SMKS Budi Mulya kasiman</td>
+                  </tr>
+                  <tr class="border-b border-black">
+                    <td class="p-1 align-top border-r border-black">b. Tempat tujuan</td>
+                    <td class="p-1 align-top" id="print-sppd-tujuan">: Cabdin Bojonegoro</td>
+                  </tr>
+                  <tr class="border-b border-black">
+                    <td class="p-1 text-center align-top border-r border-black" rowspan="3">7.</td>
+                    <td class="p-1 align-top border-r border-black">a. Lamanya Perjalanan Dinas</td>
+                    <td class="p-1 align-top" id="print-sppd-lama">: 1 Hari</td>
+                  </tr>
+                  <tr class="border-b border-black">
+                    <td class="p-1 align-top border-r border-black">b. Tanggal berangkat</td>
+                    <td class="p-1 align-top" id="print-sppd-tgl-berangkat">: Jumat, 18 September 2026</td>
+                  </tr>
+                  <tr class="border-b border-black">
+                    <td class="p-1 align-top border-r border-black">c. Tanggal harus kembali</td>
+                    <td class="p-1 align-top" id="print-sppd-tgl-kembali">: Jumat, 18 September 2026</td>
+                  </tr>
+                  <tr class="border-b border-black">
+                    <td class="p-1 text-center align-top border-r border-black" rowspan="2">8.</td>
+                    <td class="p-1 align-top border-r border-black">Pembebanan Anggaran<br>a. Instansi</td>
+                    <td class="p-1 align-top"><br>: -</td>
+                  </tr>
+                  <tr class="border-b border-black">
+                    <td class="p-1 align-top border-r border-black">b. Mata Anggaran</td>
+                    <td class="p-1 align-top">: -</td>
+                  </tr>
+                  <tr>
+                    <td class="p-1 text-center align-top border-r border-black">9.</td>
+                    <td class="p-1 align-top border-r border-black">Keterangan Lain - lain</td>
+                    <td class="p-1 align-top">: -</td>
+                  </tr>
+                </table>
+
+                <div class="p-3 text-right">
+                  <table class="inline-block text-xs text-left">
+                    <tr>
+                      <td>Dikeluarkan di</td>
+                      <td class="px-1">:</td>
+                      <td id="print-sppd-keluar-di">Kasiman</td>
+                    </tr>
+                    <tr>
+                      <td>Pada Tanggal</td>
+                      <td class="px-1">:</td>
+                      <td id="print-sppd-keluar-tgl">Jumat, 18 September 2026</td>
+                    </tr>
+                  </table>
+                  <div class="text-center mt-2 w-48 ml-auto sppd-sign">
+                    <p id="print-sppd-ttd-jabatan">Kepala SMKS Budi Mulya</p>
+                    <div class="h-10"></div>
+                    <p class="font-bold underline" id="print-sppd-ttd-nama">Heru Kasiyanto, S.Kom</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- KOLOM KANAN (STEMPEL & LEMBAR BERANGKAT / TIBA) -->
+              <div class="col-span-6 p-2 sppd-right space-y-3">
+                
+                <!-- LEMBAR I -->
+                <div class="border-b border-black pb-2">
+                  <div class="grid grid-cols-12">
+                    <span class="col-span-1 font-bold">I.</span>
+                    <div class="col-span-11">
+                      <p>Berangkat dari : <span id="print-sppd-i-dari">SMKS Budi Mulya</span></p>
+                      <p class="text-[10px] text-slate-600">(Tempat Kedudukan)</p>
+                      <p>Pada Tanggal : <span id="print-sppd-i-tgl">Jumat, 18 September 2026</span></p>
+                      <p>Menuju Ke : <span id="print-sppd-i-ke">Cabdin Bojonegoro</span></p>
+                      <div class="text-center mt-2">
+                        <p>Pejabat yang berwenang</p>
+                        <p id="print-sppd-i-jabatan">Kepala SMKS Budi Mulya</p>
+                        <div class="sppd-sign-gap"></div>
+                        <p class="font-bold underline" id="print-sppd-i-nama">Heru Kasiyanto, S.Kom</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- LEMBAR II -->
+                <div class="border-b border-black pb-2">
+                  <div class="grid grid-cols-12">
+                    <span class="col-span-1 font-bold">II.</span>
+                    <div class="col-span-11 grid grid-cols-2 gap-1">
+                      <div>
+                        <p>Tiba di : ....................</p>
+                        <p>Pada tanggal : ....................</p>
+                        <p>Kepala : ....................</p>
+                        <div class="h-6"></div>
+                        <p>NIP. </p>
+                      </div>
+                      <div>
+                        <p>Berangkat ke : ....................</p>
+                        <p>Pada tanggal : ....................</p>
+                        <p>Kepala : ....................</p>
+                        <div class="h-6"></div>
+                        <p>NIP. </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- LEMBAR III -->
+                <div class="border-b border-black pb-2">
+                  <div class="grid grid-cols-12">
+                    <span class="col-span-1 font-bold">III.</span>
+                    <div class="col-span-11 grid grid-cols-2 gap-1">
+                      <div>
+                        <p>Tiba di : ....................</p>
+                        <p>Pada tanggal : ....................</p>
+                        <p>Kepala : ....................</p>
+                        <div class="h-6"></div>
+                        <p>NIP. </p>
+                      </div>
+                      <div>
+                        <p>Berangkat ke : ....................</p>
+                        <p>Pada tanggal : ....................</p>
+                        <p>Kepala : ....................</p>
+                        <div class="h-6"></div>
+                        <p>NIP. </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- LEMBAR IV -->
+                <div class="border-b border-black pb-2">
+                  <div class="grid grid-cols-12">
+                    <span class="col-span-1 font-bold">IV.</span>
+                    <div class="col-span-11 grid grid-cols-2 gap-1">
+                      <div>
+                        <p>Tiba di : ....................</p>
+                        <p>Pada tanggal : ....................</p>
+                        <p>Kepala : ....................</p>
+                        <div class="h-6"></div>
+                        <p>NIP. </p>
+                      </div>
+                      <div>
+                        <p>Berangkat ke : ....................</p>
+                        <p>Pada tanggal : .................... </p>
+                        <p>Kepala : ....................</p>
+                        <div class="h-6"></div>
+                        <p>NIP. </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- LEMBAR V -->
+                <div class="border-b border-black pb-2">
+                  <div class="grid grid-cols-12">
+                    <span class="col-span-1 font-bold">V.</span>
+                    <div class="col-span-11">
+                      <p>Tiba Kembali di : <span id="print-sppd-v-kembali">SMKS Budi Mulya</span></p>
+                      <p class="text-[10px] text-slate-600">(Tempat Kedudukan)</p>
+                      <p>Pada tanggal : <span id="print-sppd-v-tgl">Jumat, 18 September 2026</span></p>
+                      <p>Pejabat yang berwenang</p>
+                      <p id="print-sppd-v-jabatan">Kepala SMKS Budi Mulya</p>
+                      <div class="h-6"></div>
+                      <p class="font-bold underline" id="print-sppd-v-nama">Heru Kasiyanto, S.Kom</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- FOOTNOTE SPPD LEGISLASI HUKUM -->
+                <div class="sppd-footnote text-[9px] leading-tight text-justify">
+                  Telah diperiksa dengan keterangan bahwa perjalanan tersebut benar-benar dilakukan atas perintah dan semata-mata untuk kepentingan jabatan dan pejabat memberi perintah.
+                  <p class="mt-1">
+                    Pejabat yang berwenang menerbitkan SPPD pegawai yang melakukan Perjalanan Dinas, pejabat yang mengesahkan tanggal berangkat / tiba serta Bendahara bertanggung jawab berdasarkan peraturan keuangan negara, apabila Negara menderita kerugian akibat kesalahan dan kealpaannya (angka 8, Lampiran Surat Menteri Keuangan tanggal 30 April 1975 No. B.296/MK/II/74)
+                  </p>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="config.js"></script>
+
+  <!-- JAVASCRIPT APP ENGINE -->
+  <script>
+    /* ==========================================================================
+       KONFIGURASI GITHUB PAGES + CLOUDFLARE WORKER
+       ========================================================================== */
+    const IS_PREVIEW = false;
+    const APP_CONFIG = window.ESURAT_CONFIG || {};
+    const API_URL = APP_CONFIG.API_URL || '';
+    const SESSION_STORAGE_KEY = APP_CONFIG.SESSION_STORAGE_KEY || 'esurat_user';
+    let currentUser = null;
+    let selectedPaperSize = APP_CONFIG.DEFAULT_PAPER_SIZE || 'a4';
+
+    let settingsData = {
+      nama_kepsek: "Heru Kasiyanto, S.Kom.",
+      nip_kepsek: "-",
+      pangkat_kepsek: "-",
+      jabatan_kepsek: "Kepala SMKS Budi Mulya",
+      nama_sekolah: "SMKS BUDI MULYA",
+      jenis_instansi: "SEKOLAH MENENGAH KEJURUAN",
+      alamat_sekolah: "Jl. Wonosari, Sambeng-Kasiman, Bojonegoro",
+      email_sekolah: "smkbudimulyakasiman@gmail.com",
+      kota_sekolah: "Kasiman",
+      kode_pos: "62164",
+      telp_sekolah: "(0296) 423345",
+      logo_url: "https://res.cloudinary.com/bwmgqxug/image/upload/v1789022731/logo95_-_Copy.png"
+    };
+
+    let guruList = [];
+    let suratList = [];
+
+    /* ==========================================================================
+       INISIALISASI & SYSTEM CONTROL
+       ========================================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      initApp();
+      initDatePickers();
+    });
+
+    function apiRequest(action, payload = {}, method = 'POST') {
+      if (!API_URL || API_URL.includes('PASTE_URL_')) {
+        return Promise.reject(new Error('URL Cloudflare Worker belum diisi pada API_URL.'));
+      }
+
+      const url = method === 'GET'
+        ? `${API_URL}?action=${encodeURIComponent(action)}`
+        : API_URL;
+
+      const options = {
+        method: method,
+        cache: 'no-store',
+        headers: method === 'POST' ? { 'Content-Type': 'text/plain;charset=utf-8' } : undefined
+      };
+
+      if (method === 'POST') {
+        const session = currentUser && currentUser.token ? { token: currentUser.token } : {};
+        options.body = JSON.stringify({ action, ...payload, ...session });
+      }
+
+      return fetch(url, options).then(async response => {
+        const text = await response.text();
+        let data;
+        try { data = JSON.parse(text); }
+        catch (_) { throw new Error('Backend tidak mengembalikan JSON yang valid. Pastikan URL Cloudflare Worker benar dan CORS/API aktif.'); }
+        if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+        return data;
+      });
+    }
+
+    function showApiError(error, fallback='Terjadi kesalahan koneksi ke backend.') {
+      console.error(error);
+      alert(`${fallback}\n\n${error.message || error}`);
+    }
+
+    function initApp() {
+      const savedUser = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          if (parsed && parsed.token && parsed.expires_at && new Date(parsed.expires_at).getTime() > Date.now()) {
+            currentUser = parsed;
+          } else {
+            sessionStorage.removeItem(SESSION_STORAGE_KEY);
+          }
+        } catch (_) {
+          sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        }
+      }
+
+      renderUserInterface();
+      setPaperSize(selectedPaperSize);
+
+      if (currentUser && currentUser.token) {
+        closeWelcomeModal();
+        closeAdminLoginModal();
+        switchView('dashboard');
+      } else {
+        lockApplication();
+        if (localStorage.getItem('esurat_welcome_seen') === '1') {
+          closeWelcomeModal();
+          openAdminLoginModal();
+        }
+      }
+    }
+
+    function lockApplication() {
+      const sidebar = document.getElementById('sidebar');
+      const main = document.querySelector('main');
+      if (sidebar) sidebar.classList.add('opacity-40', 'pointer-events-none');
+      if (main) main.classList.add('opacity-40', 'pointer-events-none');
+    }
+
+    function unlockApplication() {
+      const sidebar = document.getElementById('sidebar');
+      const main = document.querySelector('main');
+      if (sidebar) sidebar.classList.remove('opacity-40', 'pointer-events-none');
+      if (main) main.classList.remove('opacity-40', 'pointer-events-none');
+    }
+
+    function closeWelcomeModal() {
+      const el = document.getElementById('modal-welcome');
+      if (el) el.classList.add('hidden');
+    }
+
+    function openLoginFromWelcome() {
+      const dontShow = document.getElementById('welcome-dont-show');
+      if (dontShow && dontShow.checked) localStorage.setItem('esurat_welcome_seen', '1');
+      closeWelcomeModal();
+      openAdminLoginModal();
+    }
+
+    function openAdminLoginModal() {
+      const modal = document.getElementById('modal-admin-login');
+      if (modal) modal.classList.remove('hidden');
+      setTimeout(() => document.getElementById('login-admin-username')?.focus(), 100);
+    }
+
+    function closeAdminLoginModal() {
+      const modal = document.getElementById('modal-admin-login');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function handleAdminLogin(e) {
+      e.preventDefault();
+      const u = document.getElementById('login-admin-username').value.trim();
+      const p = document.getElementById('login-admin-password').value;
+      const btn = document.getElementById('btn-admin-login-submit');
+
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Verifikasi...`;
+
+      apiRequest('login', { username: u, password: p })
+        .then(res => {
+          if (res.status === 'success' && res.user && res.user.token) {
+            currentUser = res.user;
+            sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(currentUser));
+            document.getElementById('login-admin-password').value = '';
+            closeAdminLoginModal();
+            unlockApplication();
+            renderUserInterface();
+            switchView('dashboard');
+          } else {
+            throw new Error(res.message || 'Login gagal.');
+          }
+        })
+        .catch(err => showApiError(err, 'Login gagal.'))
+        .finally(() => {
+          btn.disabled = false;
+          btn.innerHTML = `<span>Login</span>`;
+        });
+    }
+
+    function logoutAdmin() {
+      if (currentUser && currentUser.token) apiRequest('logout').catch(() => {});
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      currentUser = null;
+      renderUserInterface();
+      lockApplication();
+      closeAdminLoginModal();
+      const welcome = document.getElementById('modal-welcome');
+      if (welcome) {
+        if (localStorage.getItem('esurat_welcome_seen') === '1') {
+          welcome.classList.add('hidden');
+          openAdminLoginModal();
+        } else {
+          welcome.classList.remove('hidden');
+        }
+      }
+    }
+
+    function renderUserInterface() {
+      const authNav = document.getElementById('nav-auth-container');
+
+      if (currentUser && currentUser.token) {
+        authNav.innerHTML = `
+          <div class="hidden sm:block text-right mr-1">
+            <p class="text-xs font-bold text-white">${currentUser.nama || currentUser.username}</p>
+            <p class="text-[10px] text-indigo-200">${currentUser.role || 'Pengguna'}</p>
+          </div>
+          <span class="bg-indigo-800 text-indigo-100 text-xs px-2.5 py-1 rounded-md font-semibold border border-indigo-700">
+            <i class="fa-solid fa-user-check text-emerald-300 mr-1"></i> ${currentUser.role || 'Pengguna'}
+          </span>
+          <button onclick="logoutAdmin()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition shadow">
+            <i class="fa-solid fa-right-from-bracket mr-1"></i> Keluar
+          </button>
+        `;
+      } else {
+        authNav.innerHTML = `
+          <button onclick="openAdminLoginModal()" class="bg-white hover:bg-indigo-50 text-indigo-800 text-xs font-bold px-3.5 py-2 rounded-xl transition shadow flex items-center gap-1.5">
+            <i class="fa-solid fa-right-to-bracket"></i> Login
+          </button>
+        `;
+      }
+
+      // Render Dynamic Sidebar
+      const menu = document.getElementById('menu-container');
+      let html = `
+        <button onclick="switchView('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
+          <i class="fa-solid fa-chart-line w-5 text-center"></i> Dashboard
+        </button>
+        <button onclick="switchView('form-surat')" id="nav-form-surat" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
+          <i class="fa-solid fa-pen-to-square w-5 text-center"></i> Buat Surat Tugas
+        </button>
+        <button onclick="switchView('arsip')" id="nav-arsip" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
+          <i class="fa-solid fa-box-archive w-5 text-center"></i> Arsip Surat
+        </button>
+        <button onclick="switchView('master-guru')" id="nav-master-guru" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
+          <i class="fa-solid fa-users w-5 text-center"></i> Master Data Guru
+        </button>
+      `;
+
+      if (currentUser && currentUser.role === 'Admin') {
+        html += `
+          <div class="pt-3 my-2 border-t text-[11px] font-bold text-slate-400 uppercase tracking-wider">Khusus Admin</div>
+          <button onclick="switchView('users')" id="nav-users" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
+            <i class="fa-solid fa-user-gear w-5 text-center"></i> Pengguna
+          </button>
+          <button onclick="switchView('settings')" id="nav-settings" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
+            <i class="fa-solid fa-sliders w-5 text-center"></i> Pengaturan Kepsek
+          </button>
+          <button onclick="switchView('database')" id="nav-database" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
+            <i class="fa-solid fa-database w-5 text-center"></i> Kelola Arsip & Database
+          </button>
+        `;
+      }
+
+      menu.innerHTML = html;
+      if (currentUser && currentUser.token) loadAllData();
+    }
+
+    /* ========================================================================
+       MANAJEMEN PENGGUNA
+       ======================================================================== */
+    let usersCache = [];
+
+    function openUserModal(user = null) {
+      if (!currentUser || currentUser.role !== 'Admin') return;
+      const modal = document.getElementById('modal-user');
+      const form = document.querySelector('#modal-user form');
+      document.getElementById('user-id').value = user?.id || '';
+      document.getElementById('user-username').value = user?.username || '';
+      document.getElementById('user-nama').value = user?.nama || '';
+      document.getElementById('user-role').value = user?.role || 'Operator';
+      document.getElementById('user-status').value = user?.status || 'Aktif';
+      const pass = document.getElementById('user-password');
+      pass.value = user ? '' : '';
+      pass.required = !user;
+      pass.type = 'password';
+      document.getElementById('user-password-eye').className = 'fa-solid fa-eye';
+      document.getElementById('user-password-help').textContent = user ? 'Kosongkan jika password tidak ingin diubah.' : 'Password akan disimpan untuk akun pengguna.';
+      document.getElementById('user-modal-title').textContent = user ? 'Edit Pengguna' : 'Tambah Pengguna';
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      setTimeout(() => document.getElementById('user-username')?.focus(), 80);
+    }
+
+    function closeUserModal() {
+      const modal = document.getElementById('modal-user');
+      if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+    }
+
+    function toggleUserPassword(inputId, iconId) {
+      const input = document.getElementById(inputId);
+      const icon = document.getElementById(iconId);
+      if (!input) return;
+      input.type = input.type === 'password' ? 'text' : 'password';
+      if (icon) icon.className = input.type === 'password' ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash';
+    }
+
+    function loadUsers() {
+      if (!currentUser || currentUser.role !== 'Admin') return;
+      const tbody = document.getElementById('table-users');
+      if (!tbody) return;
+      tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Memuat pengguna...</td></tr>`;
+      apiRequest('getUsers')
+        .then(res => {
+          if (res.status !== 'success') throw new Error(res.message || 'Data pengguna gagal dimuat.');
+          usersCache = Array.isArray(res.users) ? res.users : [];
+          renderUsersTable();
+        })
+        .catch(err => {
+          tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-red-500">${escapeHtml(err.message || 'Gagal memuat pengguna')}</td></tr>`;
+        });
+    }
+
+    function renderUsersTable() {
+      const tbody = document.getElementById('table-users');
+      if (!tbody) return;
+      if (!usersCache.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">Belum ada data pengguna.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = usersCache.map(u => {
+        const isMainAdmin = u.username === 'admin';
+        const roleClass = u.role === 'Admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700';
+        const statusClass = u.status === 'Aktif' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500';
+        return `<tr class="border-b last:border-0 hover:bg-slate-50">
+          <td class="px-4 py-3 font-semibold text-slate-800">${escapeHtml(u.username)}</td>
+          <td class="px-4 py-3">${escapeHtml(u.nama || '-')}</td>
+          <td class="px-4 py-3"><span class="px-2 py-1 rounded-md text-[11px] font-bold ${roleClass}">${escapeHtml(u.role)}</span></td>
+          <td class="px-4 py-3">
+            <div class="flex items-center gap-2">
+              <input id="pw-${escapeAttr(u.id)}" type="password" value="${escapeAttr(u.password || '')}" readonly class="w-28 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs">
+              <button type="button" onclick="toggleUserPassword('pw-${escapeAttr(u.id)}','eye-${escapeAttr(u.id)}')" class="w-7 h-7 text-slate-400 hover:text-indigo-600" title="Intip password"><i id="eye-${escapeAttr(u.id)}" class="fa-solid fa-eye"></i></button>
+            </div>
+          </td>
+          <td class="px-4 py-3"><span class="px-2 py-1 rounded-md text-[11px] font-bold ${statusClass}">${escapeHtml(u.status)}</span></td>
+          <td class="px-4 py-3 text-center whitespace-nowrap">
+            <button type="button" onclick="editUser('${escapeAttr(u.id)}')" class="text-indigo-600 hover:text-indigo-800 text-xs font-semibold mr-3"><i class="fa-solid fa-pen mr-1"></i>Edit</button>
+            ${isMainAdmin ? '<span class="text-[11px] text-slate-400">Admin Utama</span>' : `<button type="button" onclick="deleteUserPrompt('${escapeAttr(u.id)}')" class="text-red-600 hover:text-red-800 text-xs font-semibold"><i class="fa-solid fa-trash mr-1"></i>Hapus</button>`}
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    function editUser(id) {
+      const user = usersCache.find(u => String(u.id) === String(id));
+      if (user) openUserModal(user);
+    }
+
+    function handleSaveUser(e) {
+      e.preventDefault();
+      if (!currentUser || currentUser.role !== 'Admin') return;
+      const btn = document.getElementById('btn-save-user');
+      const id = document.getElementById('user-id').value.trim();
+      const data = {
+        id,
+        username: document.getElementById('user-username').value.trim(),
+        nama: document.getElementById('user-nama').value.trim(),
+        password: document.getElementById('user-password').value,
+        role: document.getElementById('user-role').value,
+        status: document.getElementById('user-status').value
+      };
+      if (!data.username || !data.nama || (!id && !data.password)) return;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+      apiRequest('saveUser', { data })
+        .then(res => {
+          if (res.status !== 'success') throw new Error(res.message || 'Pengguna gagal disimpan.');
+          closeUserModal();
+          loadUsers();
+          alert(res.message || 'Pengguna berhasil disimpan.');
+        })
+        .catch(err => alert('Gagal menyimpan pengguna.\n\n' + (err.message || err)))
+        .finally(() => {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan Pengguna';
+        });
+    }
+
+    function deleteUserPrompt(id) {
+      const user = usersCache.find(u => String(u.id) === String(id));
+      if (!user) return;
+      if (user.username === 'admin') { alert('Admin utama tidak dapat dihapus.'); return; }
+      if (!confirm(`Hapus pengguna "${user.username}"?\n\nData akun akan dihapus dari database.`)) return;
+      apiRequest('deleteUser', { id })
+        .then(res => {
+          if (res.status !== 'success') throw new Error(res.message || 'Pengguna gagal dihapus.');
+          loadUsers();
+          alert(res.message || 'Pengguna berhasil dihapus.');
+        })
+        .catch(err => alert('Gagal menghapus pengguna.\n\n' + (err.message || err)));
+    }
+
+    /* ========================================================================
+       ADMIN DATABASE CLEANUP
+       ======================================================================== */
+    function renderDatabaseManager() {
+      if (!currentUser || currentUser.role !== 'Admin') return;
+      const total = document.getElementById('db-total-surat');
+      if (total) total.textContent = suratList.length;
+
+      const yearSelect = document.getElementById('db-year');
+      if (yearSelect && !yearSelect.options.length) {
+        const years = new Set([new Date().getFullYear()]);
+        suratList.forEach(s => {
+          const m = String(s.tgl_surat || s.tgl_berangkat || '').match(/(20\d{2})/);
+          if (m) years.add(Number(m[1]));
+        });
+        yearSelect.innerHTML = [...years].sort((a,b)=>b-a).map(y => `<option value="${y}">${y}</option>`).join('');
+        yearSelect.value = String(new Date().getFullYear());
+        yearSelect.onchange = updateDatabaseMonthCount;
+      }
+      const month = document.getElementById('db-month');
+      if (month) month.onchange = updateDatabaseMonthCount;
+      renderDatabaseTable();
+      updateDatabaseMonthCount();
+      loadDatabaseStats();
+    }
+
+    function loadDatabaseStats() {
+      if (!currentUser || currentUser.role !== 'Admin') return;
+      apiRequest('databaseStats').then(res => {
+        if (res.status !== 'success') return;
+        const c = res.counts || {};
+        const map = { users:'db-count-users', guru:'db-count-guru', surat:'db-count-surat', sessions:'db-count-sessions' };
+        Object.keys(map).forEach(k => { const el = document.getElementById(map[k]); if (el) el.textContent = Number(c[k] || 0).toLocaleString('id-ID'); });
+        const total = document.getElementById('db-total-surat'); if (total) total.textContent = Number(c.surat || 0).toLocaleString('id-ID');
+      }).catch(err => console.warn('Database stats:', err));
+    }
+
+    function cleanupExpiredSessions() {
+      if (!currentUser || currentUser.role !== 'Admin') return;
+      apiRequest('cleanupSessions').then(res => {
+        if (res.status !== 'success') throw new Error(res.message || 'Gagal membersihkan session.');
+        alert(res.message || 'Session expired dibersihkan.');
+        loadDatabaseStats();
+      }).catch(err => showApiError(err, 'Gagal membersihkan session.'));
+    }
+
+    function clearAllSuratDatabase() {
+      if (!currentUser || currentUser.role !== 'Admin') return;
+      const count = suratList.length;
+      if (!count) { alert('Tidak ada arsip surat untuk dihapus.'); return; }
+      const text = prompt(`PERINGATAN! Ini akan menghapus SEMUA ${count} arsip surat secara permanen.\n\nKetik HAPUS SEMUA SURAT untuk melanjutkan:`);
+      if (text !== 'HAPUS SEMUA SURAT') return;
+      apiRequest('clearAllSurat', { confirmation: text }).then(res => {
+        if (res.status !== 'success') throw new Error(res.message || 'Gagal menghapus semua surat.');
+        return loadAllData();
+      }).then(() => { renderDatabaseManager(); alert('Semua arsip surat berhasil dihapus.'); })
+      .catch(err => showApiError(err, 'Gagal menghapus semua surat.'));
+    }
+
+    function resetOperationalDatabase() {
+      if (!currentUser || currentUser.role !== 'Admin') return;
+      const text = prompt('RESET DATA OPERASIONAL\n\nIni menghapus semua Surat, Guru, dan Session. User serta Settings tetap dipertahankan.\n\nKetik RESET DATA OPERASIONAL untuk melanjutkan:');
+      if (text !== 'RESET DATA OPERASIONAL') return;
+      apiRequest('resetOperationalData', { confirmation: text }).then(res => {
+        if (res.status !== 'success') throw new Error(res.message || 'Gagal reset data.');
+        return loadAllData();
+      }).then(() => { renderDatabaseManager(); alert('Data operasional berhasil di-reset.'); })
+      .catch(err => showApiError(err, 'Gagal reset data operasional.'));
+    }
+
+    function renderDatabaseTable() {
+      const tbody = document.getElementById('table-database-surat');
+      const select = document.getElementById('db-single-surat');
+      if (!tbody || !select) return;
+      if (!suratList.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">Tidak ada arsip surat.</td></tr>`;
+        select.innerHTML = '<option value="">-- tidak ada arsip --</option>';
+        return;
+      }
+      tbody.innerHTML = suratList.map((s, i) => `
+        <tr class="border-b last:border-0 hover:bg-slate-50">
+          <td class="px-4 py-3">${i+1}</td>
+          <td class="px-4 py-3"><div class="font-semibold text-slate-800">${escapeHtml(s.no_tugas || '-')}</div><div class="text-xs text-slate-400">SPPD: ${escapeHtml(s.no_sppd || '-')}</div></td>
+          <td class="px-4 py-3">${escapeHtml(s.nama_guru || '-')}</td>
+          <td class="px-4 py-3 text-xs">${escapeHtml(s.tgl_surat || s.tgl_berangkat || '-')}</td>
+          <td class="px-4 py-3 text-center"><button type="button" onclick="deleteSingleFromDatabase('${escapeAttr(s.id)}')" class="text-red-600 hover:text-red-800 text-xs font-semibold"><i class="fa-solid fa-trash mr-1"></i>Hapus</button></td>
+        </tr>`).join('');
+      select.innerHTML = '<option value="">-- pilih arsip --</option>' + suratList.map(s => `<option value="${escapeAttr(s.id)}">${escapeHtml(s.no_tugas || s.id)} — ${escapeHtml(s.nama_guru || '')} — ${escapeHtml(s.tgl_surat || '')}</option>`).join('');
+    }
+
+    function parseSuratMonthYear(value) {
+      const str = String(value || '').toLowerCase();
+      const months = {'januari':1,'februari':2,'maret':3,'april':4,'mei':5,'juni':6,'juli':7,'agustus':8,'september':9,'oktober':10,'november':11,'desember':12};
+      const m = str.match(/(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)\s+(20\d{2})/i);
+      if (m) return { month: months[m[1].toLowerCase()], year: Number(m[2]) };
+      const n = str.match(/(?:^|[^0-9])([0-3]?\d)[\/-]([0-1]?\d)[\/-](20\d{2})(?:[^0-9]|$)/);
+      if (n) return { month: Number(n[2]), year: Number(n[3]) };
+      const y = str.match(/(20\d{2})/);
+      return y ? {month:null, year:Number(y[1])} : {month:null, year:null};
+    }
+
+    function updateDatabaseMonthCount() {
+      const box = document.getElementById('db-month-count');
+      const month = Number(document.getElementById('db-month')?.value || 0);
+      const year = Number(document.getElementById('db-year')?.value || 0);
+      const count = suratList.filter(s => {
+        const d = parseSuratMonthYear(s.tgl_surat || s.tgl_berangkat);
+        return d.month === month && d.year === year;
+      }).length;
+      if (box) box.innerHTML = count ? `<strong>${count} arsip</strong> akan dihapus untuk periode yang dipilih.` : 'Tidak ada arsip pada periode yang dipilih.';
+    }
+
+    function deleteSingleFromDatabase(id) {
+      if (!currentUser || currentUser.role !== 'Admin') return;
+      const targetId = id || document.getElementById('db-single-surat')?.value;
+      if (!targetId) { alert('Pilih surat yang akan dihapus.'); return; }
+      const s = suratList.find(x => String(x.id) === String(targetId));
+      if (!s) { alert('Arsip surat tidak ditemukan.'); return; }
+      if (!confirm(`Hapus surat ini secara permanen?\n\n${s.no_tugas || '-'}\n${s.nama_guru || '-'}\n${s.tgl_surat || s.tgl_berangkat || '-'}\n\nData akan dihapus dari database.`)) return;
+      apiRequest('deleteSurat', { id: targetId }).then(res => {
+        if (res.status !== 'success') throw new Error(res.message || 'Gagal menghapus surat.');
+        return loadAllData();
+      }).then(() => { renderDatabaseManager(); alert('Arsip surat berhasil dihapus.'); })
+      .catch(err => showApiError(err, 'Gagal menghapus surat.'));
+    }
+
+    function deleteMonthlyFromDatabase(btn) {
+      if (!currentUser || currentUser.role !== 'Admin') return;
+      const month = Number(document.getElementById('db-month')?.value || 0);
+      const year = Number(document.getElementById('db-year')?.value || 0);
+      const monthNames = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+      const count = suratList.filter(s => { const d = parseSuratMonthYear(s.tgl_surat || s.tgl_berangkat); return d.month === month && d.year === year; }).length;
+      if (!count) { alert(`Tidak ada arsip untuk ${monthNames[month]} ${year}.`); return; }
+      if (!confirm(`Hapus SEMUA ${count} arsip surat pada ${monthNames[month]} ${year}?\n\nTindakan ini permanen dan tidak dapat dibatalkan.`)) return;
+      if (btn) btn.disabled = true;
+      apiRequest('deleteSuratByMonth', { month, year }).then(res => {
+        if (res.status !== 'success') throw new Error(res.message || 'Gagal menghapus arsip bulanan.');
+        return loadAllData();
+      }).then(() => { renderDatabaseManager(); alert(`${count} arsip ${monthNames[month]} ${year} berhasil dihapus.`); })
+      .catch(err => showApiError(err, 'Gagal menghapus arsip bulanan.'))
+      .finally(() => { if (btn) btn.disabled = false; });
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+    }
+    function escapeAttr(value) { return escapeHtml(value).replace(/`/g, '&#96;'); }
+
+    /* ==========================================================================
+       VIEW ROUTING & DATA LOAD
+       ========================================================================== */
+    function switchView(viewName) {
+      if (!currentUser || !currentUser.token) {
+        openAdminLoginModal();
+        return;
+      }
+      if ((viewName === 'settings' || viewName === 'users' || viewName === 'database') && currentUser.role !== 'Admin') {
+        openAdminLoginModal();
+        return;
+      }
+
+      const views = ['dashboard', 'form-surat', 'arsip', 'master-guru', 'users', 'settings', 'database'];
+      views.forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        if (el) el.classList.add('hidden');
+        
+        const navEl = document.getElementById(`nav-${v}`);
+        if (navEl) navEl.classList.remove('bg-indigo-50', 'text-indigo-600', 'font-bold');
+      });
+
+      const activeView = document.getElementById(`view-${viewName}`);
+      if (activeView) activeView.classList.remove('hidden');
+
+      const activeNav = document.getElementById(`nav-${viewName}`);
+      if (activeNav) activeNav.classList.add('bg-indigo-50', 'text-indigo-600', 'font-bold');
+
+      if (viewName === 'users') loadUsers();
+      if (viewName === 'database') renderDatabaseManager();
+      if (viewName === 'form-surat' && !document.getElementById('surat-id').value) {
+        resetFormSurat();
+      }
+    }
+
+    function loadAllData() {
+      if (!IS_PREVIEW) {
+        return apiRequest('getAllData')
+          .then(res => {
+            if (res.status === 'success') {
+              settingsData = { ...settingsData, ...res.settings };
+              guruList = Array.isArray(res.guru) ? res.guru : [];
+              suratList = Array.isArray(res.surat) ? res.surat : [];
+              renderAllViews();
+            } else {
+              throw new Error(res.message || 'Data tidak dapat dimuat.');
+            }
+          })
+          .catch(err => showApiError(err, 'Data aplikasi gagal dimuat.'));
+      } else {
+        renderAllViews();
+        return Promise.resolve({ status: 'success' });
+      }
+    }
+
+    function renderAllViews() {
+      // Update Dashboard Stats
+      document.getElementById('stat-total-surat').textContent = suratList.length;
+      document.getElementById('stat-total-guru').textContent = guruList.length;
+      document.getElementById('stat-nama-kepsek').textContent = settingsData.nama_kepsek;
+      document.getElementById('stat-nip-kepsek').textContent = "NIP: " + settingsData.nip_kepsek;
+      document.getElementById('school-name-nav').textContent = settingsData.nama_sekolah;
+
+      // Render Recent Surat Table
+      const recentTbody = document.getElementById('table-recent-surat');
+      recentTbody.innerHTML = suratList.slice(0, 5).map(s => `
+        <tr class="border-b hover:bg-slate-50">
+          <td class="px-4 py-2.5 font-medium text-slate-800">${s.no_tugas}</td>
+          <td class="px-4 py-2.5">${s.nama_guru}</td>
+          <td class="px-4 py-2.5">${s.tempat_tujuan}</td>
+          <td class="px-4 py-2.5 text-xs text-slate-500">${s.tgl_berangkat}</td>
+          <td class="px-4 py-2.5 text-center">
+            <button onclick="previewSurat('${s.id}')" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-xs px-2.5 py-1 rounded">
+              <i class="fa-solid fa-print mr-1"></i> Cetak
+            </button>
+          </td>
+        </tr>
+      `).join('');
+
+      // Populate Select Guru Dropdown
+      const selectGuru = document.getElementById('surat-select-guru');
+      selectGuru.innerHTML = `<option value="">-- Ketik Manual / Pilih Guru --</option>` +
+        guruList.map(g => `<option value="${g.id}">${g.nama} (${g.jabatan})</option>`).join('');
+
+      // Render Arsip Table
+      renderArsipTable(suratList);
+
+      // Render Master Guru Table
+      renderMasterGuruTable();
+
+      // Load Settings Form Data
+      document.getElementById('set-nama-kepsek').value = settingsData.nama_kepsek;
+      document.getElementById('set-nip-kepsek').value = settingsData.nip_kepsek;
+      document.getElementById('set-pangkat-kepsek').value = settingsData.pangkat_kepsek;
+      document.getElementById('set-jabatan-kepsek').value = settingsData.jabatan_kepsek;
+      document.getElementById('set-nama-sekolah').value = settingsData.nama_sekolah;
+      document.getElementById('set-kota-sekolah').value = settingsData.kota_sekolah;
+      document.getElementById('set-alamat-sekolah').value = settingsData.alamat_sekolah;
+      document.getElementById('set-telp-sekolah').value = settingsData.telp_sekolah;
+      document.getElementById('set-email-sekolah').value = settingsData.email_sekolah;
+      document.getElementById('set-logo-url').value = settingsData.logo_url;
+    }
+
+    /* ==========================================================================
+       FORM SURAT & AUTOFILL LOGIC
+       ========================================================================== */
+    function autoFillGuruInfo() {
+      const guruId = document.getElementById('surat-select-guru').value;
+      if (!guruId) return;
+
+      const g = guruList.find(item => item.id === guruId);
+      if (g) {
+        document.getElementById('surat-nama-guru').value = g.nama;
+        document.getElementById('surat-nip-guru').value = g.nip;
+        document.getElementById('surat-pangkat-guru').value = g.pangkat;
+        document.getElementById('surat-jabatan-guru').value = g.jabatan;
+        document.getElementById('surat-unit-guru').value = g.unit;
+      }
+    }
+
+    function resetFormSurat() {
+      document.getElementById('surat-id').value = '';
+      document.getElementById('form-surat-title').textContent = 'Buat Surat Tugas & SPPD';
+      document.getElementById('surat-select-guru').value = '';
+      document.getElementById('surat-nama-guru').value = '';
+      document.getElementById('surat-nip-guru').value = '-';
+      document.getElementById('surat-pangkat-guru').value = '-';
+      document.getElementById('surat-jabatan-guru').value = 'Guru Produktif';
+      document.getElementById('surat-unit-guru').value = settingsData.nama_sekolah;
+
+      const year = new Date().getFullYear();
+      document.getElementById('surat-no-tugas').value = `421.5/08.0${suratList.length + 1}/SMKS-BMK/IX/${year}`;
+      document.getElementById('surat-no-sppd').value = `421.5/12.0${suratList.length + 1}/SMKS-BMK/IX/${year}`;
+      document.getElementById('surat-keperluan').value = '';
+      document.getElementById('surat-tempat-berangkat').value = settingsData.nama_sekolah;
+      document.getElementById('surat-tempat-tujuan').value = '';
+      document.getElementById('surat-alat-angkut').value = 'Kendaraan Umum';
+      document.getElementById('surat-lama-perjalanan').value = '1 Hari';
+
+      const today = toISODate(new Date());
+      document.getElementById('surat-tgl-berangkat').value = today;
+      document.getElementById('surat-tgl-kembali').value = today;
+      document.getElementById('surat-tgl-surat').value = today;
+      syncDateLimits();
+    }
+
+    function handleSaveSurat(e) {
+      e.preventDefault();
+      if (!currentUser.token) {
+        openAdminLoginModal();
+        alert('Silakan login terlebih dahulu untuk menyimpan surat.');
+        return;
+      }
+
+      const id = document.getElementById('surat-id').value || 'SRT-' + Date.now();
+      const payload = {
+        id: id,
+        no_tugas: document.getElementById('surat-no-tugas').value,
+        no_sppd: document.getElementById('surat-no-sppd').value,
+        nama_guru: document.getElementById('surat-nama-guru').value,
+        nip_guru: document.getElementById('surat-nip-guru').value,
+        pangkat_guru: document.getElementById('surat-pangkat-guru').value,
+        jabatan_guru: document.getElementById('surat-jabatan-guru').value,
+        unit_guru: document.getElementById('surat-unit-guru').value,
+        tempat_berangkat: document.getElementById('surat-tempat-berangkat').value,
+        tempat_tujuan: document.getElementById('surat-tempat-tujuan').value,
+        keperluan: document.getElementById('surat-keperluan').value,
+        alat_angkut: document.getElementById('surat-alat-angkut').value,
+        lama_perjalanan: document.getElementById('surat-lama-perjalanan').value,
+        tgl_berangkat: document.getElementById('surat-tgl-berangkat').value,
+        tgl_kembali: document.getElementById('surat-tgl-kembali').value,
+        tgl_surat: document.getElementById('surat-tgl-surat').value
+      };
+
+      if (IS_PREVIEW) {
+        const idx = suratList.findIndex(s => s.id === id);
+        if (idx >= 0) suratList[idx] = payload;
+        else suratList.unshift(payload);
+        
+        alert('Data Surat Berhasil Disimpan!');
+        renderAllViews();
+        previewSurat(id);
+      } else {
+        apiRequest('saveSurat', { data: payload })
+        .then(res => {
+          if (res.status === 'success') {
+            const existingIndex = suratList.findIndex(item => item.id === id);
+            if (existingIndex >= 0) suratList[existingIndex] = payload;
+            else suratList.unshift(payload);
+            renderAllViews();
+            alert('Data Surat Berhasil Disimpan!');
+            previewSurat(id);
+          } else {
+            throw new Error(res.message || 'Gagal menyimpan surat.');
+          }
+        })
+        .catch(err => showApiError(err, 'Gagal menyimpan surat.'));
+      }
+    }
+
+    /* ==========================================================================
+       ARSIP SURAT MANAGEMENT & TABLE
+       ========================================================================== */
+    function renderArsipTable(data) {
+      const tbody = document.getElementById('table-arsip-surat');
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">Belum ada arsip surat.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = data.map((s, idx) => `
+        <tr class="border-b hover:bg-slate-50">
+          <td class="px-4 py-3 font-semibold text-slate-500">${idx + 1}</td>
+          <td class="px-4 py-3">
+            <p class="font-bold text-slate-800">${s.no_tugas}</p>
+            <p class="text-xs text-slate-500">SPPD: ${s.no_sppd}</p>
+          </td>
+          <td class="px-4 py-3 font-medium text-slate-700">${s.nama_guru}</td>
+          <td class="px-4 py-3">
+            <p class="font-semibold text-slate-800">${s.tempat_tujuan}</p>
+            <p class="text-xs text-slate-500">${s.keperluan}</p>
+          </td>
+          <td class="px-4 py-3 text-xs text-slate-600">${s.tgl_berangkat}</td>
+          <td class="px-4 py-3 text-center">
+            <div class="flex justify-center gap-1.5">
+              <button onclick="previewSurat('${s.id}')" title="Cetak Dokumen" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-2.5 py-1.5 rounded shadow">
+                <i class="fa-solid fa-print"></i> Cetak
+              </button>
+              <button onclick="editSurat('${s.id}')" title="Edit Data" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-2.5 py-1.5 rounded shadow">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+              ${currentUser && currentUser.role === 'Admin' ? `<button onclick="deleteSurat('${s.id}')" title="Hapus Surat" class="bg-red-600 hover:bg-red-700 text-white text-xs px-2.5 py-1.5 rounded shadow"><i class="fa-solid fa-trash"></i></button>` : ''}
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function filterSuratTable() {
+      const q = document.getElementById('search-surat').value.toLowerCase();
+      const filtered = suratList.filter(s => 
+        s.nama_guru.toLowerCase().includes(q) ||
+        s.no_tugas.toLowerCase().includes(q) ||
+        s.tempat_tujuan.toLowerCase().includes(q)
+      );
+      renderArsipTable(filtered);
+    }
+
+    function editSurat(id) {
+      const s = suratList.find(item => item.id === id);
+      if (!s) return;
+
+      document.getElementById('surat-id').value = s.id;
+      document.getElementById('form-surat-title').textContent = 'Edit Surat Tugas & SPPD';
+      document.getElementById('surat-nama-guru').value = s.nama_guru;
+      document.getElementById('surat-nip-guru').value = s.nip_guru;
+      document.getElementById('surat-pangkat-guru').value = s.pangkat_guru;
+      document.getElementById('surat-jabatan-guru').value = s.jabatan_guru;
+      document.getElementById('surat-unit-guru').value = s.unit_guru;
+      document.getElementById('surat-no-tugas').value = s.no_tugas;
+      document.getElementById('surat-no-sppd').value = s.no_sppd;
+      document.getElementById('surat-keperluan').value = s.keperluan;
+      document.getElementById('surat-tempat-berangkat').value = s.tempat_berangkat;
+      document.getElementById('surat-tempat-tujuan').value = s.tempat_tujuan;
+      document.getElementById('surat-alat-angkut').value = s.alat_angkut;
+      document.getElementById('surat-lama-perjalanan').value = s.lama_perjalanan;
+      document.getElementById('surat-tgl-berangkat').value = toISODate(s.tgl_berangkat);
+      document.getElementById('surat-tgl-kembali').value = toISODate(s.tgl_kembali);
+      document.getElementById('surat-tgl-surat').value = toISODate(s.tgl_surat);
+      syncDateLimits();
+
+      switchView('form-surat');
+    }
+
+    function deleteSurat(id) {
+      if (!currentUser || currentUser.role !== 'Admin') { alert('Hanya Admin yang dapat menghapus arsip surat.'); return; }
+      if (!currentUser.token) {
+        openAdminLoginModal();
+        return;
+      }
+      if (!confirm('Apakah Anda yakin ingin menghapus arsip surat ini?')) return;
+
+      if (IS_PREVIEW) {
+        suratList = suratList.filter(s => s.id !== id);
+        renderAllViews();
+      } else {
+        apiRequest('deleteSurat', { id })
+        .then(res => {
+          if (res.status === 'success') loadAllData();
+          else throw new Error(res.message || 'Gagal menghapus surat.');
+        })
+        .catch(err => showApiError(err, 'Gagal menghapus surat.'));
+      }
+    }
+
+    /* ==========================================================================
+       MASTER GURU MANAGEMENT
+       ========================================================================== */
+    function renderMasterGuruTable() {
+      const tbody = document.getElementById('table-master-guru');
+      tbody.innerHTML = guruList.map(g => `
+        <tr class="border-b hover:bg-slate-50">
+          <td class="px-4 py-3 font-bold text-slate-800">${g.nama}</td>
+          <td class="px-4 py-3">${g.nip}</td>
+          <td class="px-4 py-3">${g.pangkat}</td>
+          <td class="px-4 py-3">${g.jabatan}</td>
+          <td class="px-4 py-3 text-xs">${g.unit}</td>
+          <td class="px-4 py-3 text-center">
+            <button onclick="deleteGuru('${g.id}')" class="text-red-600 hover:text-red-800 text-xs font-semibold">
+              <i class="fa-solid fa-trash mr-1"></i> Hapus
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openModalGuru() {
+      if (!currentUser.token) {
+        openAdminLoginModal();
+        return;
+      }
+      const nama = prompt('Masukkan Nama Lengkap Guru & Gelar:');
+      if (!nama) return;
+      const nip = prompt('Masukkan NIP Guru (Isi - jika tidak ada):', '-');
+      const pangkat = prompt('Masukkan Pangkat / Golongan (Isi - jika tidak ada):', '-');
+      const jabatan = prompt('Masukkan Jabatan Guru:', 'Guru Produktif');
+
+      const newGuru = {
+        id: 'G' + Date.now(),
+        nama: nama,
+        nip: nip || '-',
+        pangkat: pangkat || '-',
+        jabatan: jabatan || 'Guru',
+        unit: settingsData.nama_sekolah
+      };
+
+      if (IS_PREVIEW) {
+        guruList.push(newGuru);
+        renderAllViews();
+      } else {
+        apiRequest('saveGuru', { data: newGuru })
+        .then(res => {
+          if (res.status === 'success') loadAllData();
+          else throw new Error(res.message || 'Gagal menyimpan guru.');
+        })
+        .catch(err => showApiError(err, 'Gagal menyimpan guru.'));
+      }
+    }
+
+    function deleteGuru(id) {
+      if (!currentUser.token) {
+        openAdminLoginModal();
+        return;
+      }
+      if (!confirm('Hapus guru dari database?')) return;
+      if (IS_PREVIEW) {
+        guruList = guruList.filter(g => g.id !== id);
+        renderAllViews();
+      } else {
+        apiRequest('deleteGuru', { id }).then(() => loadAllData()).catch(err => showApiError(err, 'Gagal menghapus guru.'));
+      }
+    }
+
+    /* ==========================================================================
+       SETTINGS MANAGEMENT (KHUSUS ADMIN)
+       ========================================================================== */
+    function handleSaveSettings(e) {
+      e.preventDefault();
+      if (!currentUser.token || currentUser.role !== 'Admin') {
+        openAdminLoginModal();
+        return;
+      }
+      if (currentUser.role !== 'Admin') {
+        alert('Akses Ditolak! Hanya Admin yang dapat mengubah pengaturan.');
+        return;
+      }
+
+      settingsData.nama_kepsek = document.getElementById('set-nama-kepsek').value;
+      settingsData.nip_kepsek = document.getElementById('set-nip-kepsek').value;
+      settingsData.pangkat_kepsek = document.getElementById('set-pangkat-kepsek').value;
+      settingsData.jabatan_kepsek = document.getElementById('set-jabatan-kepsek').value;
+      settingsData.nama_sekolah = document.getElementById('set-nama-sekolah').value;
+      settingsData.kota_sekolah = document.getElementById('set-kota-sekolah').value;
+      settingsData.alamat_sekolah = document.getElementById('set-alamat-sekolah').value;
+      settingsData.telp_sekolah = document.getElementById('set-telp-sekolah').value;
+      settingsData.email_sekolah = document.getElementById('set-email-sekolah').value;
+      settingsData.logo_url = document.getElementById('set-logo-url').value;
+
+      if (IS_PREVIEW) {
+        alert('Pengaturan Berhasil Disimpan (Mode Preview)!');
+        renderAllViews();
+      } else {
+        apiRequest('saveSettings', { data: settingsData })
+        .then(res => {
+          if (res.status === 'success') {
+            alert('Pengaturan Berhasil Disimpan ke Database!');
+            loadAllData();
+          } else {
+            throw new Error(res.message || 'Gagal menyimpan pengaturan.');
+          }
+        })
+        .catch(err => showApiError(err, 'Gagal menyimpan pengaturan.'));
+      }
+    }
+
+    /* ==========================================================================
+       MODAL PREVIEW & DYNAMIC PAPER PRINT ENGINE (A4 / F4)
+       ========================================================================== */
+    /* =========================================================
+       FORMAT TANGGAL INDONESIA
+       Menerima YYYY-MM-DD, DD-MM-YYYY, tanggal Indonesia,
+       maupun string Date dari Google Sheets.
+       ========================================================= */
+    function toISODate(value) {
+      if (!value) return '';
+      if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        const y = value.getFullYear();
+        const m = String(value.getMonth() + 1).padStart(2, '0');
+        const d = String(value.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+      const raw = String(value).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+      const parsed = parseTanggalIndonesia(raw);
+      if (!parsed || Number.isNaN(parsed.getTime())) return '';
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, '0');
+      const d = String(parsed.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function syncDateLimits() {
+      const berangkat = document.getElementById('surat-tgl-berangkat');
+      const kembali = document.getElementById('surat-tgl-kembali');
+      if (!berangkat || !kembali) return;
+      kembali.min = berangkat.value || '';
+      if (kembali.value && berangkat.value && kembali.value < berangkat.value) {
+        kembali.value = berangkat.value;
+      }
+    }
+
+    function initDatePickers() {
+      ['surat-tgl-berangkat','surat-tgl-kembali','surat-tgl-surat'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('keydown', e => {
+          // Tetap gunakan kalender; cegah pengetikan manual format tanggal.
+          if (e.key !== 'Tab' && e.key !== 'Shift' && e.key !== 'Enter') e.preventDefault();
+        });
+        el.addEventListener('paste', e => e.preventDefault());
+        el.addEventListener('click', () => {
+          if (typeof el.showPicker === 'function') {
+            try { el.showPicker(); } catch (_) {}
+          }
+        });
+      });
+      document.getElementById('surat-tgl-berangkat')?.addEventListener('change', syncDateLimits);
+      syncDateLimits();
+    }
+
+    function parseTanggalIndonesia(value) {
+      if (!value) return null;
+      const raw = String(value).trim();
+      const bulan = {
+        januari:0, februari:1, maret:2, april:3, mei:4, juni:5,
+        juli:6, agustus:7, september:8, oktober:9, november:10, desember:11
+      };
+      let m = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (m) return new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+      m = raw.match(/^(\d{1,2})[-\/]([A-Za-z]+)[-\/](\d{2,4})$/);
+      if (m) {
+        const key = m[2].toLowerCase();
+        if (bulan[key] !== undefined) {
+          let y = Number(m[3]); if (y < 100) y += 2000;
+          return new Date(y, bulan[key], Number(m[1]));
+        }
+      }
+      m = raw.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
+      if (m) {
+        const key = m[2].toLowerCase();
+        if (bulan[key] !== undefined) return new Date(Number(m[3]), bulan[key], Number(m[1]));
+      }
+      const d = new Date(raw);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    function formatTanggalIndonesia(value, withDay = false) {
+      const d = parseTanggalIndonesia(value);
+      if (!d) return value || '-';
+      const hari = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+      const bulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+      const text = `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
+      return withDay ? `${hari[d.getDay()]}, ${text}` : text;
+    }
+
+    function setPaperSize(size) {
+      selectedPaperSize = size;
+      const btnA4 = document.getElementById('btn-paper-a4');
+      const btnF4 = document.getElementById('btn-paper-f4');
+      const paperContainer = document.getElementById('print-area');
+      const dynamicStyle = document.getElementById('dynamic-paper-print');
+
+      if (size === 'a4') {
+        btnA4.className = "px-3 py-1 text-xs font-bold rounded-md bg-indigo-600 text-white transition";
+        btnF4.className = "px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition";
+        paperContainer.className = "paper-a4 text-black surat-font text-slate-900 leading-normal";
+        dynamicStyle.innerHTML = `@page { size: A4 portrait; margin: 0; }`;
+      } else {
+        btnF4.className = "px-3 py-1 text-xs font-bold rounded-md bg-indigo-600 text-white transition";
+        btnA4.className = "px-3 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition";
+        paperContainer.className = "paper-f4 text-black surat-font text-slate-900 leading-normal";
+        dynamicStyle.innerHTML = `@page { size: 215mm 330mm; margin: 0; }`;
+      }
+    }
+
+    function previewSurat(id) {
+      const s = suratList.find(item => item.id === id);
+      if (!s) return;
+
+      // Populate Header & Logo
+      document.getElementById('print-logo-1').src = settingsData.logo_url;
+      document.getElementById('print-logo-2').src = settingsData.logo_url;
+      document.getElementById('print-header-nama').textContent = settingsData.nama_sekolah;
+      document.getElementById('print-header-nama-2').textContent = settingsData.nama_sekolah;
+      document.getElementById('print-header-alamat').textContent = settingsData.alamat_sekolah;
+      document.getElementById('print-header-alamat-2').textContent = settingsData.alamat_sekolah;
+      document.getElementById('print-header-email').textContent = settingsData.email_sekolah;
+      document.getElementById('print-header-email-2').textContent = settingsData.email_sekolah;
+      document.getElementById('print-header-kota').textContent = settingsData.kota_sekolah.toUpperCase();
+      document.getElementById('print-header-kota-2').textContent = settingsData.kota_sekolah.toUpperCase();
+
+      // Populate Page 1 (Surat Tugas)
+      document.getElementById('print-no-tugas').textContent = `No: ${s.no_tugas}`;
+      document.getElementById('print-kepsek-nama').textContent = settingsData.nama_kepsek;
+      document.getElementById('print-kepsek-nip').textContent = settingsData.nip_kepsek;
+      document.getElementById('print-kepsek-pangkat').textContent = settingsData.pangkat_kepsek;
+      document.getElementById('print-kepsek-jabatan').textContent = settingsData.jabatan_kepsek;
+      document.getElementById('print-kepsek-unit').textContent = settingsData.nama_sekolah;
+
+      document.getElementById('print-guru-nama').textContent = s.nama_guru;
+      document.getElementById('print-guru-nip').textContent = s.nip_guru;
+      document.getElementById('print-guru-pangkat').textContent = s.pangkat_guru;
+      document.getElementById('print-guru-jabatan').textContent = s.jabatan_guru;
+      document.getElementById('print-guru-unit').textContent = s.unit_guru;
+
+      document.getElementById('print-tgl-berangkat-1').textContent = formatTanggalIndonesia(s.tgl_berangkat, true);
+      document.getElementById('print-tempat-tujuan-1').textContent = s.tempat_tujuan;
+      document.getElementById('print-keperluan-1').textContent = s.keperluan;
+      document.getElementById('print-ttd-kota-tgl').textContent = `${settingsData.kota_sekolah}, ${formatTanggalIndonesia(s.tgl_surat, true)}`;
+      document.getElementById('print-ttd-kepsek-nama-1').textContent = settingsData.nama_kepsek;
+
+      // Populate Page 2 (SPPD)
+      document.getElementById('print-no-sppd').textContent = `Nomor: ${s.no_sppd}`;
+      document.getElementById('print-sppd-pejabat').textContent = settingsData.jabatan_kepsek;
+      document.getElementById('print-sppd-nama-guru').textContent = s.nama_guru;
+      document.getElementById('sppd-val-pangkat').textContent = s.pangkat_guru;
+      document.getElementById('sppd-val-jabatan').textContent = s.jabatan_guru;
+      document.getElementById('print-sppd-keperluan').textContent = `: ${s.keperluan}`;
+      document.getElementById('print-sppd-alat').textContent = `: ${s.alat_angkut}`;
+      document.getElementById('print-sppd-berangkat-dari').textContent = `: ${s.tempat_berangkat}`;
+      document.getElementById('print-sppd-tujuan').textContent = `: ${s.tempat_tujuan}`;
+      document.getElementById('print-sppd-lama').textContent = `: ${s.lama_perjalanan}`;
+      document.getElementById('print-sppd-tgl-berangkat').textContent = `: ${formatTanggalIndonesia(s.tgl_berangkat, true)}`;
+      document.getElementById('print-sppd-tgl-kembali').textContent = `: ${formatTanggalIndonesia(s.tgl_kembali, true)}`;
+
+      document.getElementById('print-sppd-keluar-di').textContent = settingsData.kota_sekolah;
+      document.getElementById('print-sppd-keluar-tgl').textContent = formatTanggalIndonesia(s.tgl_surat, true);
+      document.getElementById('print-sppd-ttd-jabatan').textContent = settingsData.jabatan_kepsek;
+      document.getElementById('print-sppd-ttd-nama').textContent = settingsData.nama_kepsek;
+
+      // SPPD Kolom Kanan
+      document.getElementById('print-sppd-i-dari').textContent = s.tempat_berangkat;
+      document.getElementById('print-sppd-i-tgl').textContent = formatTanggalIndonesia(s.tgl_berangkat, true);
+      document.getElementById('print-sppd-i-ke').textContent = s.tempat_tujuan;
+      document.getElementById('print-sppd-i-jabatan').textContent = settingsData.jabatan_kepsek;
+      document.getElementById('print-sppd-i-nama').textContent = settingsData.nama_kepsek;
+
+      document.getElementById('print-sppd-v-kembali').textContent = s.tempat_berangkat;
+      document.getElementById('print-sppd-v-tgl').textContent = formatTanggalIndonesia(s.tgl_kembali, true);
+      document.getElementById('print-sppd-v-jabatan').textContent = settingsData.jabatan_kepsek;
+      document.getElementById('print-sppd-v-nama').textContent = settingsData.nama_kepsek;
+
+      document.getElementById('modal-preview').classList.remove('hidden');
+    }
+
+    function closeModalPreview() {
+      document.getElementById('modal-preview').classList.add('hidden');
+    }
+
+    function executePrint() {
+      window.print();
+    }
+  </script>
+<script>
+/* STATIC PREVIEW MODE: data hanya berada di memori halaman dan hilang saat refresh. */
+window.ESURAT_STATIC_MODE=true;
+window.ESURAT_RUNTIME_SETTINGS=JSON.parse(JSON.stringify(window.ESURAT_CONFIG.school));
+window.getStaticSchoolSettings=function(){return Object.assign({},window.ESURAT_RUNTIME_SETTINGS)};
+window.setStaticSchoolSettings=function(data){Object.assign(window.ESURAT_RUNTIME_SETTINGS,data||{});return getStaticSchoolSettings()};
+</script>
+</body>
+</html>
